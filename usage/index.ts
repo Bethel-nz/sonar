@@ -27,7 +27,7 @@ type MyWorkflowEvents = {
 };
 
 // adding a generic makes each event names types plus you get full typesafety
-const myWorkflow = workflow('MyWorkflow', (wf) => {
+const myWorkflow = workflow<MyWorkflowEvents>('MyWorkflow', (wf) => {
   wf.on(
     'start',
     {
