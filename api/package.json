@@ -1,0 +1,39 @@
+{
+  "name": "api",
+  "scripts": {
+    "dev": "bun run --hot src/index.ts",
+    "db::generate": "bun run drizzle-kit generate",
+    "db::push": "drizzle-kit push",
+    "db::migrate": "bun run drizzle-kit migrate"
+  },
+  "dependencies": {
+    "@grammyjs/parse-mode": "^1.10.0",
+    "@grammyjs/runner": "^2.0.3",
+    "@grammyjs/storage-file": "^2.4.2",
+    "@grammyjs/transformer-throttler": "^1.2.1",
+    "@hono/zod-validator": "^0.4.1",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/nanoid": "^3.0.0",
+    "date-fns": "^4.1.0",
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.5",
+    "drizzle-orm": "^0.35.3",
+    "grammy": "^1.30.0",
+    "hono": "^4.6.5",
+    "jsonwebtoken": "^9.0.2",
+    "ky": "^1.7.2",
+    "nanoid": "^5.0.7",
+    "pg": "^8.13.0",
+    "postgres": "^3.4.4",
+    "redis": "^4.7.0",
+    "telegraf": "^4.16.3",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/node": "^22.7.7",
+    "@types/pg": "^8.11.10",
+    "drizzle-kit": "^0.26.2",
+    "tsx": "^4.19.1"
+  }
+}

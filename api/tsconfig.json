@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "hono/jsx",
+    "lib": ["ES2020"],
+    "module": "esnext",
+    "skipLibCheck": true,
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "outDir": "dist",
+    "rootDir": "./",
+    "baseUrl": ".",
+    "paths": {
+        "~utils/*": ["./src/utils/*"],
+      "~utils*": ["./src/utils"],
+      "~src/*": ["./src/*"],
+      "~drizzle/*": ["./drizzle/*"],
+      "~*": ["./*"],
+      "~models/*": ["./drizzle/models/*"]
+    },
+    "types": ["node"]
+  },
+  "exclude": ["node_modules", "dist"],
+  "include": ["./**/*.ts", "schema/**/*", "**/*.d.ts", "drizzle/index.ts", "drizzle.config.ts"]
+}

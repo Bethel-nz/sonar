@@ -1,0 +1,16 @@
+{
+  "name": "@sonar/sdk",
+  "version": "0.0.1",
+  "module": "index.ts",
+  "type": "module",
+  "devDependencies": {
+    "bun-types": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "ky": "^1.7.2",
+    "zod": "^3.23.8"
+  }
+}
