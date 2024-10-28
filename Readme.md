@@ -1,5 +1,8 @@
-i thought about building an event tracking system, basically everything works, i.e communication between the sdk and the different services, but i cant seem to get the frontend working, 
+# Event Tracking System
 
-Todo:
-[ ] - build a seperate frontend
-[ ] - integrate other services
+I thought about building an event tracking system, basically everything works, i.e communication between the SDK and the different services, but I can't seem to get the frontend working.
+
+## Todo
+
+[]	- Build a separate frontend
+[]	- Integrate other services
