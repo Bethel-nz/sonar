@@ -90,7 +90,6 @@ export const authMiddleware = createMiddleware<{
   if (!token && refreshToken) {
     try {
       const decodedRefresh = verifyToken(refreshToken, refreshSecret) as User;
-      console.log(decodedRefresh)
       const newToken = generateToken(decodedRefresh, '15m');
       await setSignedCookie(c, 'sonar_token', newToken!, secret, {
         httpOnly: true,

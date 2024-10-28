@@ -17,10 +17,12 @@ interface SessionData {
 type MyContext = ParseModeFlavor<Context & SessionFlavor<SessionData>>;
 
 export class TelegramService implements NotificationService {
+  private static instance: TelegramService;
   private bot: Bot<MyContext>;
   private projectChannels: Map<string, string> = new Map(); // projectId -> chatId
+  private isRunning: boolean = false;
 
-  constructor() {
+  private constructor() {
     const token = process.env.TELEGRAM_BOT_TOKEN;
     if (!token) {
       throw new Error('BOT_TOKEN environment variable is not set');
@@ -48,7 +50,19 @@ export class TelegramService implements NotificationService {
     this.setupBot();
   }
 
+  public static getInstance(): TelegramService {
+    if (!TelegramService.instance) {
+      TelegramService.instance = new TelegramService();
+    }
+    return TelegramService.instance;
+  }
+
   private async setupBot() {
+    if (this.isRunning) {
+      console.log('Bot is already running');
+      return;
+    }
+
     // Add refresh command to command list
     await this.bot.api.setMyCommands([
       { command: 'start', description: 'Start the bot' },
@@ -262,12 +276,19 @@ export class TelegramService implements NotificationService {
 
     // Start the bot with runner for better concurrency handling
     const runner = run(this.bot);
+    this.isRunning = true;
 
     // Load existing mappings
     await this.loadChannelMappings();
 
     // Handle graceful shutdown
-    const stopRunner = () => runner.isRunning() && runner.stop();
+    const stopRunner = () => {
+      if (runner.isRunning()) {
+        runner.stop();
+        this.isRunning = false;
+      }
+    };
+    
     process.once('SIGINT', stopRunner);
     process.once('SIGTERM', stopRunner);
   }

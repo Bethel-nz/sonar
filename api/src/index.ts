@@ -38,6 +38,9 @@ app.get(
   WorkflowDetailView
 );
 
+// Test
+app.use("*", authMiddleware, projectMiddleware, workflowMiddleware)
+
 // API routes
 api.use('*', authMiddleware);
 api.use('/projects/*', projectMiddleware);

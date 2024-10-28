@@ -91,7 +91,6 @@ project.post(
         );
       }
 
-      // If not in Redis, check the database
       if (!projectCount) {
         const dbProjectCount = await drizzle
           .select({ count: count() })
@@ -114,7 +113,6 @@ project.post(
 
       const project = await createProject(name, user.id);
 
-      // Increment the project count in Redis
       await redis.incr(`user:${user.id}:projectCount`);
 
       return c.redirect(`/projects`, 303);
@@ -166,10 +164,9 @@ project.get('/', async (c) => {
     // Try to get projects from Redis
     const cachedProjects = await redis.get(`user:${user.id}:projects`);
     
-    // Always fetch from database to ensure we have the latest data
     const dbProjects = await drizzle.query.projects.findMany({
       where: eq(projects.userId, user.id),
-      orderBy: [desc(projects.createdAt)], // Optional: order by creation date
+      orderBy: [desc(projects.createdAt)],
     });
 
     // Update cache with latest data

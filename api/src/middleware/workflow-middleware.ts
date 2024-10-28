@@ -40,7 +40,6 @@ const workflowMiddleware = createMiddleware<{
         eq(workflows.projectId, project.id)
       ),
     });
-    console.log(workflowName, workflow, cachedWorkflow);
 
     if (workflow) {
       await redis.set(

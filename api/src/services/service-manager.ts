@@ -12,7 +12,7 @@ export class ServiceManager {
 
   private initializeServices() {
     if (process.env.TELEGRAM_BOT_TOKEN!) {
-      this.services.set('Telegram', new TelegramService());
+      this.services.set('Telegram', TelegramService.getInstance());
     }
 
     if (process.env.DISCORD_WEBHOOK_URL) {

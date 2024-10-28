@@ -5,7 +5,6 @@ import { Layout } from './layouts/Layout'
 import type { Project } from "~drizzle/models/projects"
 import type { Workflow } from "~drizzle/models/workflows"
 import { Notification } from './components/Notification'
-import { getRedisClient } from "../src/utils/redis"
 
 const ProjectsComponent = ({ projects = [], workflows = {}, error }: { projects: Project[], workflows: Record<string, Workflow[]>, error?: string }) => (
 	<Layout title="Projects">
@@ -676,6 +675,7 @@ export const ProjectsView = async (c: Context) => {
 		const error = c.req.query('error');
 		const workflows = c.get("workflows")
 
+		console.log(workflows, projects, "projects view")
 
 		return c.html(
 			<ProjectsComponent
