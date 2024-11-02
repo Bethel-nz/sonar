@@ -46,10 +46,10 @@ class Workflow<T extends WorkflowEventMap> {
     payloadFn: PayloadFunction<z.infer<T[K]['schema']>>,
     services: Services
   ): {
-    next: <NextK extends keyof T>(
+    next: <NextK extends string>(
       nextEventName: NextK,
-      nextFn: (data: z.infer<T[NextK]['schema']>) => void
-    ) => (data: z.infer<T[NextK]['schema']>) => void;
+      nextFn?: (data: z.infer<T[K]['schema']>) => void | Promise<void>
+    ) => void;
   } {
     ConfigSchema.parse(config);
     ServicesSchema.parse(services);
@@ -58,16 +58,19 @@ class Workflow<T extends WorkflowEventMap> {
       config,
       schema: config.schema,
       services: services.service,
-      payloadFn
+      payloadFn,
     };
 
     return {
-      next: <NextK extends keyof T>(
+      next: <NextK extends string>(
         nextEventName: NextK,
-        nextFn: (data: z.infer<T[NextK]['schema']>) => void
+        nextFn?: (data: ReturnType<PayloadFunction<z.infer<T[K]['schema']>>>) => void | Promise<void>
       ) => {
         this.events[eventName].nextEvent = nextEventName;
-        return nextFn;
+        if (nextFn) {
+          this.events[eventName].onNextEvent = nextFn;
+          
+        }
       },
     };
   }
@@ -76,7 +79,6 @@ class Workflow<T extends WorkflowEventMap> {
     event: K;
     data: z.infer<T[K]['schema']>;
   }) {
-    // Queue the event emission
     this.emitQueue = this.emitQueue.then(() => this.emitEvent(params));
     return this.emitQueue;
   }
@@ -90,21 +92,18 @@ class Workflow<T extends WorkflowEventMap> {
       throw new Error(`Event ${String(params.event)} not registered`);
     }
 
-    // eventConfig.schema.parse(params.data);
-    
-    const { config, payloadFn, services, nextEvent } = eventConfig;
+    const { config, payloadFn, services, nextEvent, onNextEvent } = eventConfig;
     const { schema, ...configWithoutSchema } = config;
 
-    const payload = payloadFn(params.data);
+    const transformedPayload = payloadFn(params.data);
 
     const requestBody = {
       event: params.event,
       config: configWithoutSchema,
-      payload,
+      payload: transformedPayload,
       services,
       nextEvent: nextEvent || null,
     };
-
 
     try {
       const response = await fetch(
@@ -134,6 +133,15 @@ class Workflow<T extends WorkflowEventMap> {
         error
       );
       throw error;
+    } finally {
+      // Execute onNextEvent callback if it exists, regardless of SDK success/failure
+      if (onNextEvent) {
+        try {
+          await onNextEvent(params.data);
+        } catch (callbackError) {
+          console.error('Error in next event callback:', callbackError);
+        }
+      }
     }
   }
 }

@@ -41,7 +41,8 @@ export type WorkflowDefinition<T extends WorkflowEventMap> = {
       schema: T[K]['schema'];
       services: string[];
       payloadFn: PayloadFunction<z.infer<T[K]['schema']>>;
-      nextEvent?: keyof T;
+      nextEvent?: string;
+      onNextEvent?: (data: ReturnType<PayloadFunction<T[K]['data']>>) => void | Promise<void>;
     };
   };
 };
