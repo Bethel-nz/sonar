@@ -5,8 +5,9 @@ import { projects, workflows } from '~drizzle/schema';
 import drizzle from '~drizzle';
 import { generateProjectId, generateApiKey } from '~utils/api-key';
 import { Project } from '~drizzle/models/projects';
-import { User } from '~drizzle/models/users';
-import { eq, count, desc } from 'drizzle-orm';
+import users, { User } from '~drizzle/models/users';
+
+import { eq, count, desc, sql } from 'drizzle-orm';
 import { getRedisClient } from '~utils/redis';
 import { CACHE_EXPIRY } from '~utils/constants';
 
@@ -17,22 +18,33 @@ const createProject = async (name: string, userId: string) => {
   const apiKey = generateApiKey();
   const redis = await getRedisClient();
 
-  const project = await drizzle
-    .insert(projects)
-    .values({
-      id: projectId,
-      name,
-      userId,
-      apiKey,
-    })
-    .returning();
+const project = await drizzle.transaction(async (tx) => {
 
-  // Cache the new project in Redis
-  await redis.set(`project:${projectId}`, JSON.stringify(project[0]), {
+    const [newProject] = await tx
+      .insert(projects)
+      .values({
+        id: projectId,
+        name,
+        userId,
+        apiKey,
+      })
+      .returning();
+
+    await tx
+      .update(users)
+      .set({
+        project_count: sql`project_count + 1`,
+      })
+      .where(eq(users.id, userId));
+
+    return newProject;
+  });
+
+  await redis.set(`project:${projectId}`, JSON.stringify(project), {
     EX: CACHE_EXPIRY,
   });
 
-  return project[0];
+  return project;
 };
 
 // Function to handle cache invalidation
