@@ -4,8 +4,6 @@ import { projects } from '~drizzle/schema';
 import { eq, and } from 'drizzle-orm';
 import { Project } from '~drizzle/models/projects';
 import { User } from '~drizzle/models/users';
-import { getRedisClient } from '~utils/redis';
-import { CACHE_EXPIRY } from '~utils/constants';
 import { Context, Next } from "hono";
 
 type MiddlewareVariables = {
@@ -17,32 +15,6 @@ type MiddlewareVariables = {
     projectId:string
   };
 };
-
-async function getProjectWithCache(projectId: string, userId: string) {
-  const redis = await getRedisClient();
-  const cacheKey = `project:${projectId}`;
-
-  const cachedProject = await redis.get(cacheKey);
-  if (cachedProject) {
-    const project = JSON.parse(cachedProject);
-    if (project.userId === userId) {
-      return project;
-    }
-    return null;
-  }
-
-  const project = await drizzle.query.projects.findFirst({
-    where: and(eq(projects.id, projectId), eq(projects.userId, userId)),
-  });
-
-  if (project) {
-    await redis.set(cacheKey, JSON.stringify(project), {
-      EX: CACHE_EXPIRY,
-    });
-  }
-
-  return project;
-}
 
 const projectMiddleware = createMiddleware<MiddlewareVariables>(
   async (c, next) => {
@@ -59,12 +31,7 @@ const projectMiddleware = createMiddleware<MiddlewareVariables>(
       where: eq(projects.userId, user.id), 
     });
 
-
     if (dbProjects.length > 0) {
-      const redis = await getRedisClient();
-      await redis.set(`user:${user.id}:projects`, JSON.stringify(dbProjects), {
-        EX: CACHE_EXPIRY,
-      });
       c.set('projects', dbProjects);
     }
 

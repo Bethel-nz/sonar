@@ -5,8 +5,6 @@ import { Workflow } from '~drizzle/models/workflows';
 import { Project } from '~drizzle/models/projects';
 import { Event } from '~drizzle/models/events';
 import { createMiddleware } from 'hono/factory';
-import { getRedisClient } from '~utils/redis';
-import { CACHE_EXPIRY } from '~utils/constants';
 
 const workflowMiddleware = createMiddleware<{
   Variables: {
@@ -14,42 +12,28 @@ const workflowMiddleware = createMiddleware<{
     project: Project;
     events: Event[];
     isApiKeyAuth: boolean;
-	workflowName:string
+    workflowName: string;
   };
 }>(async (c, next) => {
-
   const workflowName = c.get('workflowName');
   const project = c.get('project');
   const isApiKeyAuth = c.get('isApiKeyAuth');
-  const redis = await getRedisClient();
 
   if (!workflowName) {
     return c.json({ error: 'Workflow name is required' }, 400);
   }
 
-  // Try to get workflow from Redis
-  const cachedWorkflow = await redis.get(
-    `workflow:${project.id}:${workflowName}`
-  );
-  let workflow = cachedWorkflow ? JSON.parse(cachedWorkflow) : null;
+  // Find existing workflow
+  const existingWorkflow = await drizzle.query.workflows.findFirst({
+    where: and(
+      eq(workflows.name, workflowName),
+      eq(workflows.projectId, project.id)
+    ),
+  });
 
-  if (!workflow) {
-    workflow = await drizzle.query.workflows.findFirst({
-      where: and(
-        eq(workflows.name, workflowName),
-        eq(workflows.projectId, project.id)
-      ),
-    });
+  let workflow: Workflow;
 
-    if (workflow) {
-      await redis.set(
-        `workflow:${project.id}:${workflowName}`,
-        JSON.stringify(workflow)
-      );
-    }
-  }
-
-  if (!workflow && isApiKeyAuth) {
+  if (!existingWorkflow && isApiKeyAuth) {
     try {
       workflow = await drizzle
         .insert(workflows)
@@ -59,31 +43,22 @@ const workflowMiddleware = createMiddleware<{
         })
         .returning()
         .then((rows) => rows[0]);
-
-      // Cache the new workflow in Redis
-      await redis.set(
-        `workflow:${project.id}:${workflowName}`,
-        JSON.stringify(workflow),
-        {
-          EX: CACHE_EXPIRY,
-        }
-      );
     } catch (error) {
       console.error('Error creating workflow:', error);
       return c.json({ error: 'Failed to create workflow' }, 500);
     }
-  } else if (!workflow) {
+  } else if (!existingWorkflow) {
     return c.json({ error: 'Workflow not found' }, 404);
+  } else {
+    workflow = existingWorkflow;
   }
 
-  if (workflow) {
-    c.set('workflow', workflow);
-    const AllEvents = await drizzle.query.events.findMany({
-      where: eq(events.workflowId, workflow.id),
-      orderBy: [desc(events.createdAt)],
-    });
-    c.set('events', AllEvents);
-  }
+  c.set('workflow', workflow);
+  const AllEvents = await drizzle.query.events.findMany({
+    where: eq(events.workflowId, workflow.id),
+    orderBy: [desc(events.createdAt)],
+  });
+  c.set('events', AllEvents);
 
   await next();
 });

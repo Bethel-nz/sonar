@@ -6,10 +6,11 @@ import { events, workflows } from '~drizzle/schema';
 import { eq, and } from 'drizzle-orm';
 import { Workflow } from '~drizzle/models/workflows';
 import { Project } from '~drizzle/models/projects';
-import { getRedisClient } from '~utils/redis';
 import { serviceManager } from '../services/service-manager';
 
 // Create an event queue manager
+
+//since we arent using redis, we create an event queue manager to queue events then process them one by one
 class EventQueueManager {
   private queues: Map<string, Promise<any>>;
 
@@ -17,22 +18,18 @@ class EventQueueManager {
     this.queues = new Map();
   }
 
-  async enqueue(queueKey: string, task: () => Promise<any>): Promise<any> {
-    // Get the current queue for this workflow or create a new one
+    async enqueue(queueKey: string, task: () => Promise<any>): Promise<any> {
     const currentQueue = this.queues.get(queueKey) || Promise.resolve();
 
-    // Create a new promise that waits for the previous task and then executes the new one
     const newQueue = currentQueue.then(task).catch(error => {
       console.error(`Error processing event in queue ${queueKey}:`, error);
       throw error;
     }).finally(() => {
-      // If this was the last task in the queue, clean up
       if (this.queues.get(queueKey) === newQueue) {
         this.queues.delete(queueKey);
       }
     });
 
-    // Update the queue
     this.queues.set(queueKey, newQueue);
     return newQueue;
   }
@@ -72,15 +69,13 @@ workflow.get(
   })),
   async (c) => {
     const workflow = c.get('workflow');
-    const redis = await getRedisClient();
-
-    // Update cache
-    await redis.set(
-      `workflow:${workflow.projectId}:${workflow.name}`,
-      JSON.stringify(workflow)
-    );
-
-    return c.json({ workflow });
+  
+    try {
+      return c.json({ workflow },200);
+    } catch (error) {
+      console.error('Error fetching workflow:', error);
+      return c.json({ error: 'Failed to fetch workflow' }, 500);
+    }
   }
 );
 
@@ -88,23 +83,16 @@ workflow.get(
 workflow.get('/', async (c) => {
   try {
     const project = c.get("project");
-    
-    // Check if project exists
+      
     if (!project) {
       return c.json({ error: "Project not found" }, 404);
     }
 
-    const redis = await getRedisClient();
-    
-    // Get cached workflows for this project
-    const cachedWorkflows = await redis.get(`project:${project.id}:workflows`);
-    
-    if (cachedWorkflows) {
-      return c.json({ projectWorkflows: JSON.parse(cachedWorkflows) });
-    }
+    const projectWorkflows = await drizzle.query.workflows.findMany({
+      where: eq(workflows.projectId, project.id),
+    });
 
-    // If no cached data, return empty array
-    return c.json({ projectWorkflows: [] });
+    return c.json({ projectWorkflows }, 200);
 
   } catch (error) {
     console.error("Error fetching workflows:", error);
@@ -124,8 +112,7 @@ workflow.put(
   async (c) => {
     const workflow = c.get('workflow');
     const { name } = c.req.valid('json');
-    const redis = await getRedisClient();
-
+ 
     try {
       const updatedWorkflow = await drizzle
         .update(workflows)
@@ -133,14 +120,6 @@ workflow.put(
         .where(eq(workflows.id, workflow.id))
         .returning();
 
-      // Update the workflow in Redis
-      await redis.set(
-        `workflow:${workflow.projectId}:${workflow.name}`,
-        JSON.stringify(updatedWorkflow[0])
-      );
-
-      // Invalidate the project's workflows cache
-      await redis.del(`project:${workflow.projectId}:workflows`);
 
       return c.json({
         message: 'Workflow updated successfully',
@@ -153,20 +132,18 @@ workflow.put(
   }
 );
 
-workflow.delete('/:workflowName', async (c) => {
+workflow.delete('/:workflowName', zValidator('param', z.object({
+  workflowName: z.string().min(1),
+})), async (c) => {
+  const {workflowName} = c.req.valid('param');
   const workflow = c.get('workflow');
-  const redis = await getRedisClient();
 
   try {
-    await drizzle.delete(workflows).where(eq(workflows.id, workflow.id));
+    if (!workflow) return c.json({ error: 'Workflow not found' }, 404);
 
-    // Remove the workflow from Redis
-    await redis.del(`workflow:${workflow.projectId}:${workflow.name}`);
+    await drizzle.delete(workflows).where(and(eq(workflows.id, workflow.id), eq(workflows.name, workflowName)));
 
-    // Invalidate the project's workflows cache
-    await redis.del(`project:${workflow.projectId}:workflows`);
-
-    return c.json({ message: 'Workflow deleted successfully' });
+    return c.json({ message: 'Workflow deleted successfully' }, 200 );
   } catch (error) {
     console.error('Error deleting workflow:', error);
     return c.json({ error: 'Failed to delete workflow' }, 500);
@@ -176,20 +153,18 @@ workflow.delete('/:workflowName', async (c) => {
 workflow.post(
   '/:workflowName/events',
   zValidator('json', eventSchema),
+  zValidator('param', z.object({
+    workflowName: z.string().min(1),
+  })),
   async (c) => {
+    const { workflowName } = c.req.valid('param');
     const workflow = c.get('workflow');
     const project = c.get('project');
     const eventData = c.req.valid('json');
     const queueKey = `${project.id}:${workflow.id}`;
 
-    console.log('📨 Received event:', {
-      workflow: workflow.name,
-      event: eventData.event,
-      services: eventData.services
-    });
 
     try {
-      // Process event in queue
       return await eventQueue.enqueue(queueKey, async () => {
         let event = await drizzle.query.events.findFirst({
           where: and(
@@ -198,15 +173,12 @@ workflow.post(
           ),
         });
 
-        // Handle event storage
         if (event && JSON.stringify(event.payload) === JSON.stringify(eventData.payload)) {
-          console.log('📝 Updating existing event count:', eventData.event);
           await drizzle
             .update(events)
             .set({ count: event.count + 1 })
             .where(eq(events.id, event.id));
         } else {
-          console.log('✨ Creating new event:', eventData.event);
           [event] = await drizzle
             .insert(events)
             .values({
@@ -225,14 +197,13 @@ workflow.post(
             workflowName: workflow.name,
             eventName: eventData.event,
             description: eventData.config.description,
+            tags: eventData.config.tags,
             severity: eventData.config.severity,
             payload: eventData.payload,
             timestamp: new Date(),
             nextEvent: eventData.nextEvent,
           };
 
-          console.log('📤 Sending to services:', eventData.services);
-          // Wait for service notifications to complete
           await serviceManager.notify(eventData.services, serviceMessage);
         }
 
@@ -240,10 +211,10 @@ workflow.post(
           success: true, 
           message: 'Event Emitted successfully',
           event: event.id 
-        });
+        }, 200);
       });
     } catch (error) {
-      console.error('❌ Error processing event:', error);
+      console.error('Error processing event:', error);
       return c.json(
         {
           error: 'Failed to process event',
@@ -254,46 +225,5 @@ workflow.post(
     }
   }
 );
-
-workflow.post('/events', zValidator('json', eventSchema), async (c) => {
-  const workflow = c.get('workflow');
-  const project = c.get('project');
-  const body = await c.req.valid('json');
-  const queueKey = `${project.id}:${workflow.id}`;
-
-  try {
-    return await eventQueue.enqueue(queueKey, async () => {
-      // Create event record
-      const [event] = await drizzle
-        .insert(events)
-        .values({
-          name: body.event,
-          workflowId: workflow.id,
-          config: body.config,
-          payload: body.payload,
-          services: body.services,
-          nextEvent: body.nextEvent,
-        })
-        .returning();
-
-      // Send notifications through configured services
-      await serviceManager.notify(body.services, {
-        projectId: project.id,
-        workflowName: workflow.name,
-        eventName: body.event,
-        description: body.config.description,
-        severity: body.config.severity,
-        payload: body.payload,
-        timestamp: new Date(),
-        nextEvent: body.nextEvent,
-      });
-
-      return c.json({ success: true, event });
-    });
-  } catch (error) {
-    console.error('Error processing event:', error);
-    return c.json({ error: 'Failed to process event' }, 500);
-  }
-});
 
 export default workflow;

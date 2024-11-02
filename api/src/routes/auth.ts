@@ -31,19 +31,12 @@ auth.post('/signup', zValidator('form', signupSchema), async (c) => {
   const body = await c.req.valid('form');
   const result = signupSchema.safeParse(body);
 
-  if (!result.success) {
-    console.log(result.error);
-    return c.redirect(
-      '/auth/signup?error=' + encodeURIComponent('Invalid input')
-    );
-  }
+  if (!result.success) return c.json({error: 'Input doesnt Match Expected Data'}, 400);
 
   const { username, email, password } = result.data;
-  if (await isEmailAvailable(email)) {
-    return c.redirect(
-      '/auth/signup?error=' + encodeURIComponent('Email already in use')
-    );
-  }
+
+  if (await isEmailAvailable(email)) return c.json({error: 'Email already in use'}, 400);
+  
 
   const hashedPassword = await hashPassword(password);
 
@@ -80,18 +73,15 @@ auth.post('/signup', zValidator('form', signupSchema), async (c) => {
     }
   );
 
-  return c.redirect('/', 303);
+  return c.json({message: 'User created successfully'}, 201);
 });
 
 auth.post('/login', zValidator('form', loginSchema), async (c) => {
   const body = await c.req.valid('form');
   const result = loginSchema.safeParse(body);
 
-  if (!result.success) {
-    return c.redirect(
-      '/auth/login?error=' + encodeURIComponent('Invalid input')
-    );
-  }
+  if (!result.success) return c.json({error: 'Input doesnt Match Expected Data'}, 400);
+  
 
   const { email, password } = result.data;
 
@@ -99,11 +89,8 @@ auth.post('/login', zValidator('form', loginSchema), async (c) => {
     where: (users, { eq }) => eq(users.email, email),
   });
 
-  if (!user || !(await comparePassword(password, user.password))) {
-    return c.redirect(
-      '/auth/login?error=' + encodeURIComponent('Invalid credentials')
-    );
-  }
+  if (!user || !(await comparePassword(password, user.password))) return c.json({error: 'Invalid credentials or user doesnt exist'}, 400);
+  
 
   const token = generateToken(user, '15m');
   const refreshToken = generateToken(user, '7d');
@@ -130,16 +117,14 @@ auth.post('/login', zValidator('form', loginSchema), async (c) => {
     }
   );
 
-  return c.redirect('/', 303);
+  return c.json({message: 'User logged in successfully'}, 200);
 });
 
 auth.post('/logout', async (c) => {
-  // Delete the authentication cookies
   deleteCookie(c, 'sonar_token');
   deleteCookie(c, 'sonar_refresh_token');
 
-  // Redirect to the login page
-  return c.redirect('/auth/login');
+  return c.json({message: 'User logged out successfully'}, 200);
 });
 
 export default auth;

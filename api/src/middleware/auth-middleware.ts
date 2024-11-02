@@ -9,8 +9,7 @@ import { createMiddleware } from 'hono/factory';
 import { isProduction } from '~utils/constants';
 
 const publicRoutes = [
-  '/login',
-  '/signup',
+
   '/api/v1/auth/login',
   '/api/v1/auth/signup',
   '/api/v1/auth/logout',
@@ -29,12 +28,11 @@ export const authMiddleware = createMiddleware<{
 
 
     /** 
-    - Apparently i cant read the params here i have to use a regex to extract it
+    - i cant read the params here i have to use a regex to extract it
     */
     const projectIdMatch = path.match(/\/projects\/([^\/]+)/);
     const workflowMatch = path.match(/\/workflows\/([^\/]+)/);
 
-    
     const projectId = projectIdMatch ? projectIdMatch[1] : null;
     const workflowName = workflowMatch ? workflowMatch[1] : null;
 
@@ -104,6 +102,7 @@ export const authMiddleware = createMiddleware<{
       return next();
     } catch (error) {
       console.log('Refresh token error:', error);
+      return c.json({message: "Your session has expired, please login again"}, 401);
     }
   }
 
@@ -123,7 +122,7 @@ export const authMiddleware = createMiddleware<{
   }
 
   if (!token && !refreshToken && !publicRoutes.includes(path)) {
-    return c.redirect('/auth/login', 303);
+    return c.json({message: "You need a valid token to access this route"}, 401);
   }
 
   return next();
