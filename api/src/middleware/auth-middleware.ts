@@ -6,6 +6,7 @@ import { getSignedCookie, setSignedCookie } from 'hono/cookie';
 import { generateToken, verifyToken, secret, refreshSecret } from '~utils/auth';
 import { and, eq } from 'drizzle-orm';
 import { createMiddleware } from 'hono/factory';
+import { isProduction } from '~utils/constants';
 
 const publicRoutes = [
   '/login',
@@ -93,9 +94,10 @@ export const authMiddleware = createMiddleware<{
       const newToken = generateToken(decodedRefresh, '15m');
       await setSignedCookie(c, 'sonar_token', newToken!, secret, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'Lax',
+        secure: isProduction,
+        sameSite: 'None',
         maxAge: 900,
+        domain: isProduction ? '.sonar.sh' : 'localhost',
       });
       c.set('user', decodedRefresh);
       c.set('isApiKeyAuth', false);

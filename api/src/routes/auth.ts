@@ -11,7 +11,7 @@ import {
 import drizzle from '../../drizzle';
 import { users } from '../../drizzle/schema';
 import { setSignedCookie, deleteCookie } from 'hono/cookie';
-
+import { isProduction } from '~utils/constants';
 import { zValidator } from '@hono/zod-validator';
 
 const auth = new Hono();
@@ -60,9 +60,10 @@ auth.post('/signup', zValidator('form', signupSchema), async (c) => {
 
   await setSignedCookie(c, 'sonar_token', token!, secret, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'Strict',
+    secure: isProduction,
+    sameSite: 'None',
     maxAge: 900, // 15 minutes
+    domain: isProduction ? '.sonar.sh' : 'localhost',
   });
 
   await setSignedCookie(
@@ -72,9 +73,10 @@ auth.post('/signup', zValidator('form', signupSchema), async (c) => {
     refreshSecret,
     {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'Strict',
+      secure: isProduction,
+      sameSite: 'None',
       maxAge: 604800, // 7 days
+      domain: isProduction ? '.sonar.sh' : 'localhost',
     }
   );
 
@@ -108,9 +110,10 @@ auth.post('/login', zValidator('form', loginSchema), async (c) => {
 
   await setSignedCookie(c, 'sonar_token', token!, secret, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'Lax',
+    secure: isProduction,
+    sameSite: 'None',
     maxAge: 900, // 15 minutes
+    domain: isProduction ? '.sonar.sh' : 'localhost',
   });
 
   await setSignedCookie(
@@ -120,9 +123,10 @@ auth.post('/login', zValidator('form', loginSchema), async (c) => {
     refreshSecret,
     {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'Strict',
+      secure: isProduction,
+      sameSite: 'None',
       maxAge: 604800, // 7 days
+      domain: isProduction ? '.sonar.sh' : 'localhost',
     }
   );
 
