@@ -1,99 +1,144 @@
 import { workflow } from '@sonar/sdk';
 import { z } from 'zod';
-import { config } from 'dotenv';
 
-config();
-
-// Define your workflow's event map
-type MyWorkflowEvents = {
-  start: {
+type ProcessingWorkflowEvents = {
+  uploadStart: {
     schema: z.ZodObject<{
-      userId: z.ZodString;
+      fileId: z.ZodString;
+      size: z.ZodNumber;
     }>;
-    data: { userId: string };
+    data: { fileId: string; size: number };
   };
-  process: {
+  processing: {
     schema: z.ZodObject<{
-      data: z.ZodString;
+      fileId: z.ZodString;
+      progress: z.ZodNumber;
     }>;
-    data: { data: string };
+    data: { fileId: string; progress: number };
   };
-  end: {
+  complete: {
     schema: z.ZodObject<{
-      success: z.ZodBoolean;
+      fileId: z.ZodString;
+      url: z.ZodString;
     }>;
-    data: { success: boolean };
+    data: { fileId: string; url: string };
   };
 };
 
-// adding a generic makes each event names types plus you get full typesafety
-const myWorkflow = workflow<MyWorkflowEvents>('MyWorkflow', (wf) => {
+// Simulate a heavy process
+async function heavyProcessing(fileId: string): Promise<void> {
+  console.log(`🔄 Starting heavy processing for file: ${fileId}`);
+  
+  // Simulate steps in the process
+  for (let i = 1; i <= 3; i++) {
+    await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
+    console.log(`⚙️ Processing step ${i}/3 for file: ${fileId}`);
+  }
+  
+  console.log(`✅ Completed heavy processing for file: ${fileId}`);
+}
+
+const processingWorkflow = workflow<ProcessingWorkflowEvents>('FileProcessing', (wf) => {
   wf.on(
-    'start',
+    'uploadStart',
     {
-      description: 'Workflow started',
+      description: 'File upload started',
       severity: 'info',
-      tags: ['start'],
-      schema: z.object({ userId: z.string() }),
-	  },
-	//userId is typed cause we specified it in the schema
-    (data) => ({ startedBy: data.userId }),
-    { service: ['Telegram'] }
-  ).next('process', (data: { data: string }) => {
-    console.log(`Processing data: ${data.data}`);
+      tags: ['upload'],
+      schema: z.object({ 
+        fileId: z.string(),
+        size: z.number()
+      }),
+    },
+    (data) => ({ 
+      id: data.fileId,
+      fileSize: `${(data.size / 1024 / 1024).toFixed(2)} MB`
+    }),
+    { service: ['Discord', 'Telegram'] }
+  ).next('processing', async (data) => {
+
+    console.log('🚀 Starting post-upload processing...');
+    await heavyProcessing(data.fileId);
   });
 
   wf.on(
-	  'process',
+    'processing',
     {
-      description: 'Processing data',
+      description: 'File processing',
       severity: 'info',
-		tags: ['process'],
-		schema: z.object({ data: z.string() }),
-	  },
-    (data : { data: string }) => ({ processedData: data.data }),
-    { service: ['Discord'] }
-  );
+      tags: ['processing'],
+      schema: z.object({
+        fileId: z.string(),
+        progress: z.number()
+      }),
+    },
+    (data) => ({
+      id: data.fileId,
+      progress: `${data.progress}%`
+    }),
+    { service: ['Discord', 'Telegram'] }
+  ).next('complete');
 
   wf.on(
-    'end',
+    'complete',
     {
-      description: 'Workflow ended',
+      description: 'File processing completed',
       severity: 'info',
-      tags: ['end'],
-      schema: z.object({ success: z.boolean() }),
+      tags: ['complete'],
+      schema: z.object({
+        fileId: z.string(),
+        url: z.string()
+      }),
     },
-    (data: { success: boolean }) => ({
-      result: data.success ? 'Success' : 'Failure',
+    (data) => ({
+      id: data.fileId,
+      downloadUrl: data.url
     }),
-    { service: ['Telegram', 'Discord'] }
+    { service: ['Discord', 'Telegram'] }
   );
 });
 
-// Usage:
-
-// Test the emission
-async function test() {
+// Test the workflow
+async function testProcessingWorkflow() {
   try {
-    console.log('Starting workflow test...');
+    console.log('🎬 Starting processing workflow test...');
     
-    await myWorkflow.emit({ event: "start", data: { userId: "123" } });
-    console.log('Start event emitted');
+    // Start upload
+    const fileId = 'file_' + Date.now();
+    await processingWorkflow.emit({
+      event: "uploadStart",
+      data: {
+        fileId,
+        size: 15_000_000 // 15MB
+      }
+    });
     
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Simulate processing progress
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    await processingWorkflow.emit({
+      event: "processing",
+      data: {
+        fileId,
+        progress: 50
+      }
+    });
     
-    await myWorkflow.emit({ event: 'process', data: { data: 'some data' } });
-    console.log('Process event emitted');
+    // Simulate completion
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    await processingWorkflow.emit({
+      event: 'complete',
+      data: {
+        fileId,
+        url: `https://storage.example.com/files/${fileId}`
+      }
+    });
     
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    await myWorkflow.emit({ event: 'end', data: { success: true } });
-    console.log('End event emitted');
-    
-    console.log('All events emitted successfully');
+    console.log('✨ Test completed successfully');
   } catch (error) {
-    console.error('Error in workflow test:', error);
+    console.error('❌ Test failed:', error);
   }
 }
 
-test().catch(console.error);
+// Run the test
+console.log('🏃 Running workflow test...');
+testProcessingWorkflow().catch(console.error);
