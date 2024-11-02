@@ -17,10 +17,11 @@ interface SessionData {
 type MyContext = ParseModeFlavor<Context & SessionFlavor<SessionData>>;
 
 export class TelegramService implements NotificationService {
-  private static instance: TelegramService;
+  public static instance: TelegramService;
   private bot: Bot<MyContext>;
   private projectChannels: Map<string, string> = new Map(); // projectId -> chatId
   private isRunning: boolean = false;
+  private runner: { isRunning(): boolean; stop(): Promise<void> } | null = null;
 
   private constructor() {
     const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -48,6 +49,8 @@ export class TelegramService implements NotificationService {
 
   this.bot.use(sequentialize((ctx) => ctx.chat?.id.toString()));
     this.setupBot();
+
+    this.setupCleanupHandlers();
   }
 
   public static getInstance(): TelegramService {
@@ -63,234 +66,255 @@ export class TelegramService implements NotificationService {
       return;
     }
 
-    // Add refresh command to command list
-    await this.bot.api.setMyCommands([
-      { command: 'start', description: 'Start the bot' },
-      { command: 'connect', description: 'Connect to a project' },
-      { command: 'help', description: 'Show help' },
-      { command: 'status', description: 'Check connection status' },
-      { command: 'refresh', description: 'Refresh bot connection' },
-    ]);
+    try {
+      // Stop existing runner if it exists
+      if (this.runner?.isRunning()) {
+        await this.runner.stop();
+      }
 
-    this.bot.command('start', async (ctx) => {
-      const message = await ctx.api.sendMessage(
-        ctx.chat.id,
-        'Welcome to Sonar Bot! 🚀\n\n' +
-        'Use /connect <project_id> <api_key> to connect this chat to your project.\n\n' +
-        'Example:\n/connect prj_123456 sonar_abcdef'
-      );
-      ctx.session.lastCommandMessageId = message.message_id;
-    });
+      // Add refresh command to command list
+      await this.bot.api.setMyCommands([
+        { command: 'start', description: 'Start the bot' },
+        { command: 'connect', description: 'Connect to a project' },
+        { command: 'help', description: 'Show help' },
+        { command: 'status', description: 'Check connection status' },
+        { command: 'refresh', description: 'Refresh bot connection' },
+      ]);
 
-    this.bot.command('help', async (ctx) => {
-      await ctx.api.sendMessage(
-        ctx.chat.id,
-        '🤖 *Sonar Bot Help*\n\n' +
-        'Available commands:\n' +
-        '/start - Start the bot\n' +
-        '/connect <project_id> <api_key> - Connect to a project\n' +
-        '/status - Check current connection status\n' +
-        '/help - Show this help message\n\n' +
-        'Once connected, you\'ll receive notifications for your workflow events here.',
-        { parse_mode: 'Markdown' }
-      );
-    });
-
-    // Handle /status command
-    this.bot.command('status', async (ctx) => {
-      const chatId = ctx.chat.id.toString();
-      const connection = await drizzle.query.telegramChannels.findFirst({
-        where: eq(telegramChannels.chatId, chatId)
+      this.bot.command('start', async (ctx) => {
+        const message = await ctx.api.sendMessage(
+          ctx.chat.id,
+          'Welcome to Sonar Bot! 🚀\n\n' +
+          'Use /connect <project_id> <api_key> to connect this chat to your project.\n\n' +
+          'Example:\n/connect prj_123456 sonar_abcdef'
+        );
+        ctx.session.lastCommandMessageId = message.message_id;
       });
 
-      if (connection) {
+      this.bot.command('help', async (ctx) => {
         await ctx.api.sendMessage(
           ctx.chat.id,
-          '✅ *Connected*\n\n' +
-          `Project ID: \`${connection.projectId}\`\n` +
-          `Connected since: ${connection.createdAt?.toLocaleString()}`,
+          '🤖 *Sonar Bot Help*\n\n' +
+          'Available commands:\n' +
+          '/start - Start the bot\n' +
+          '/connect <project_id> <api_key> - Connect to a project\n' +
+          '/status - Check current connection status\n' +
+          '/help - Show this help message\n\n' +
+          'Once connected, you\'ll receive notifications for your workflow events here.',
           { parse_mode: 'Markdown' }
         );
-      } else {
-        await ctx.api.sendMessage(
-          ctx.chat.id,
-          '❌ *Not Connected*\n\n' +
-          'Use /connect <project_id> <api_key> to connect this chat to your project.',
-          { parse_mode: 'Markdown' }
-        );
-      }
-    });
+      });
 
-    // Handle /connect command
-    this.bot.command('connect', async (ctx) => {
-      if (!ctx.message?.text) {
-        await ctx.api.sendMessage(ctx.chat.id, '❌ Invalid command format');
-        return;
-      }
-
-      // Store the command message ID for later deletion
-      const commandMessageId = ctx.message.message_id;
-
-      const message = ctx.message.text.split(' ');
-      if (message.length !== 3) {
-        const errorMessage = await ctx.api.sendMessage(
-          ctx.chat.id,
-          '❌ Invalid format!\n\n' +
-          'Usage: /connect <project_id> <api_key>\n' +
-          'Example: /connect prj_123456 sonar_abcdef'
-        );
-        
-        setTimeout(async () => {
-          try {
-            await ctx.api.deleteMessage(ctx.chat.id, commandMessageId);
-            await ctx.api.deleteMessage(ctx.chat.id, errorMessage.message_id);
-          } catch (error) {
-            console.error('Error deleting messages:', error);
-          }
-        }, 5000);
-        return;
-      }
-
-      const [_, projectId, apiKey] = message;
-      const chatId = ctx.chat.id.toString();
-
-      try {
-
-        await drizzle
-          .insert(telegramChannels)
-          .values({
-            projectId,
-            chatId,
-            apiKey,
-          })
-          .onConflictDoUpdate({
-            target: telegramChannels.projectId,
-            set: { chatId, apiKey },
-          });
-
-        this.projectChannels.set(projectId, chatId);
-        
-        const successMessage = await ctx.api.sendMessage(
-          ctx.chat.id,
-          '✅ Successfully connected!\n\n' +
-          'You will now receive notifications for this project in this chat.',
-          { parse_mode: 'Markdown' }
-        );
-
-        setTimeout(async () => {
-          try {
-            await ctx.api.deleteMessage(ctx.chat.id, commandMessageId);
-            await ctx.api.deleteMessage(ctx.chat.id, successMessage.message_id);
-          } catch (error) {
-            console.error('Error deleting messages:', error);
-          }
-        }, 5000);
-      } catch (error) {
-        console.error('Error connecting chat:', error);
-        const errorMessage = await ctx.api.sendMessage(
-          ctx.chat.id,
-          '❌ Failed to connect. Please check your project ID and API key.'
-        );
-
-        setTimeout(async () => {
-          try {
-            await ctx.api.deleteMessage(ctx.chat.id, commandMessageId);
-            await ctx.api.deleteMessage(ctx.chat.id, errorMessage.message_id);
-          } catch (error) {
-            console.error('Error deleting messages:', error);
-          }
-        }, 5000);
-      }
-    });
-
-    // Add refresh command handler
-    this.bot.command('refresh', async (ctx) => {
-      const chatId = ctx.chat.id.toString();
-      
-      try {
-        // Reload channel mappings
-        await this.loadChannelMappings();
-        
-        // Check connection
+      // Handle /status command
+      this.bot.command('status', async (ctx) => {
+        const chatId = ctx.chat.id.toString();
         const connection = await drizzle.query.telegramChannels.findFirst({
           where: eq(telegramChannels.chatId, chatId)
         });
 
         if (connection) {
-          const pingMessage = await ctx.api.sendMessage(
-            ctx.chat.id,
-            '🔄 Refreshing connection...'
-          );
-
-          await ctx.api.deleteMessage(ctx.chat.id, pingMessage.message_id);
-
           await ctx.api.sendMessage(
             ctx.chat.id,
-            '✅ *Connection Refreshed Successfully*\n\n' +
+            '✅ *Connected*\n\n' +
             `Project ID: \`${connection.projectId}\`\n` +
-            'Bot is ready to receive notifications.',
+            `Connected since: ${connection.createdAt?.toLocaleString()}`,
             { parse_mode: 'Markdown' }
           );
-
-          this.messageStore.clear();
-          this.eventCountStore.clear();
         } else {
           await ctx.api.sendMessage(
             ctx.chat.id,
-            '❌ *No Active Connection*\n\n' +
+            '❌ *Not Connected*\n\n' +
             'Use /connect <project_id> <api_key> to connect this chat to your project.',
             { parse_mode: 'Markdown' }
           );
         }
-      } catch (error) {
-        console.error('Error refreshing connection:', error);
-        await ctx.api.sendMessage(
-          ctx.chat.id,
-          '❌ *Error Refreshing Connection*\n\n' +
-          'Please try reconnecting with /connect command.',
-          { parse_mode: 'Markdown' }
-        );
-      }
-    });
+      });
 
-    setInterval(async () => {
-      try {
-        const mappings = await drizzle.query.telegramChannels.findMany();
-        for (const mapping of mappings) {
-          try {
-            await this.bot.api.sendChatAction(mapping.chatId, "typing");
-          } catch (error) {
-            console.warn(`Lost connection to chat ${mapping.chatId}, removing mapping`);
-            this.projectChannels.delete(mapping.projectId);
-          }
+      // Handle /connect command
+      this.bot.command('connect', async (ctx) => {
+        if (!ctx.message?.text) {
+          await ctx.api.sendMessage(ctx.chat.id, '❌ Invalid command format');
+          return;
         }
-      } catch (error) {
-        console.error('Error in health check:', error);
+
+        // Store the command message ID for later deletion
+        const commandMessageId = ctx.message.message_id;
+
+        const message = ctx.message.text.split(' ');
+        if (message.length !== 3) {
+          const errorMessage = await ctx.api.sendMessage(
+            ctx.chat.id,
+            '❌ Invalid format!\n\n' +
+            'Usage: /connect <project_id> <api_key>\n' +
+            'Example: /connect prj_123456 sonar_abcdef'
+          );
+          
+          setTimeout(async () => {
+            try {
+              await ctx.api.deleteMessage(ctx.chat.id, commandMessageId);
+              await ctx.api.deleteMessage(ctx.chat.id, errorMessage.message_id);
+            } catch (error) {
+              console.error('Error deleting messages:', error);
+            }
+          }, 5000);
+          return;
+        }
+
+        const [_, projectId, apiKey] = message;
+        const chatId = ctx.chat.id.toString();
+
+        try {
+
+          await drizzle
+            .insert(telegramChannels)
+            .values({
+              projectId,
+              chatId,
+              apiKey,
+            })
+            .onConflictDoUpdate({
+              target: telegramChannels.projectId,
+              set: { chatId, apiKey },
+            });
+
+          this.projectChannels.set(projectId, chatId);
+          
+          const successMessage = await ctx.api.sendMessage(
+            ctx.chat.id,
+            '✅ Successfully connected!\n\n' +
+            'You will now receive notifications for this project in this chat.',
+            { parse_mode: 'Markdown' }
+          );
+
+          setTimeout(async () => {
+            try {
+              await ctx.api.deleteMessage(ctx.chat.id, commandMessageId);
+              await ctx.api.deleteMessage(ctx.chat.id, successMessage.message_id);
+            } catch (error) {
+              console.error('Error deleting messages:', error);
+            }
+          }, 5000);
+        } catch (error) {
+          console.error('Error connecting chat:', error);
+          const errorMessage = await ctx.api.sendMessage(
+            ctx.chat.id,
+            '❌ Failed to connect. Please check your project ID and API key.'
+          );
+
+          setTimeout(async () => {
+            try {
+              await ctx.api.deleteMessage(ctx.chat.id, commandMessageId);
+              await ctx.api.deleteMessage(ctx.chat.id, errorMessage.message_id);
+            } catch (error) {
+              console.error('Error deleting messages:', error);
+            }
+          }, 5000);
+        }
+      });
+
+      // Add refresh command handler
+      this.bot.command('refresh', async (ctx) => {
+        const chatId = ctx.chat.id.toString();
+        
+        try {
+          // Reload channel mappings
+          await this.loadChannelMappings();
+          
+          // Check connection
+          const connection = await drizzle.query.telegramChannels.findFirst({
+            where: eq(telegramChannels.chatId, chatId)
+          });
+
+          if (connection) {
+            const pingMessage = await ctx.api.sendMessage(
+              ctx.chat.id,
+              '🔄 Refreshing connection...'
+            );
+
+            await ctx.api.deleteMessage(ctx.chat.id, pingMessage.message_id);
+
+            await ctx.api.sendMessage(
+              ctx.chat.id,
+              '✅ *Connection Refreshed Successfully*\n\n' +
+              `Project ID: \`${connection.projectId}\`\n` +
+              'Bot is ready to receive notifications.',
+              { parse_mode: 'Markdown' }
+            );
+
+            this.messageStore.clear();
+            this.eventCountStore.clear();
+          } else {
+            await ctx.api.sendMessage(
+              ctx.chat.id,
+              '❌ *No Active Connection*\n\n' +
+              'Use /connect <project_id> <api_key> to connect this chat to your project.',
+              { parse_mode: 'Markdown' }
+            );
+          }
+        } catch (error) {
+          console.error('Error refreshing connection:', error);
+          await ctx.api.sendMessage(
+            ctx.chat.id,
+            '❌ *Error Refreshing Connection*\n\n' +
+            'Please try reconnecting with /connect command.',
+            { parse_mode: 'Markdown' }
+          );
+        }
+      });
+
+      setInterval(async () => {
+        try {
+          const mappings = await drizzle.query.telegramChannels.findMany();
+          for (const mapping of mappings) {
+            try {
+              await this.bot.api.sendChatAction(mapping.chatId, "typing");
+            } catch (error) {
+              console.warn(`Lost connection to chat ${mapping.chatId}, removing mapping`);
+              this.projectChannels.delete(mapping.projectId);
+            }
+          }
+        } catch (error) {
+          console.error('Error in health check:', error);
+        }
+      }, 360000); // Check every minute
+
+      // Error handling
+      this.bot.catch((err) => {
+        console.error('Telegram bot error:', err);
+      });
+
+      // Start the bot with runner
+      this.runner = run(this.bot);
+      this.isRunning = true;
+
+      // Load existing mappings
+      await this.loadChannelMappings();
+
+      // Handle graceful shutdown
+      const stopBot = async () => {
+        if (this.runner?.isRunning()) {
+          await this.runner.stop();
+          this.isRunning = false;
+          this.runner = null;
+        }
+      };
+
+      process.once('SIGINT', stopBot);
+      process.once('SIGTERM', stopBot);
+      
+      // Add this to handle hot reloading
+      if (process.env.NODE_ENV === 'development') {
+        process.once('SIGUSR2', async () => {
+          await stopBot();
+          process.kill(process.pid, 'SIGUSR2');
+        });
       }
-    }, 360000); // Check every minute
-
-    // Error handling
-    this.bot.catch((err) => {
-      console.error('Telegram bot error:', err);
-    });
-
-    // Start the bot with runner for better concurrency handling
-    const runner = run(this.bot);
-    this.isRunning = true;
-
-    // Load existing mappings
-    await this.loadChannelMappings();
-
-    // Handle graceful shutdown
-    const stopRunner = () => {
-      if (runner.isRunning()) {
-        runner.stop();
-        this.isRunning = false;
-      }
-    };
-    
-    process.once('SIGINT', stopRunner);
-    process.once('SIGTERM', stopRunner);
+    } catch (error) {
+      console.error('Error setting up bot:', error);
+      this.isRunning = false;
+      this.runner = null;
+      throw error;
+    }
   }
 
   private async loadChannelMappings() {
@@ -390,4 +414,41 @@ ${JSON.stringify(message.payload, null, 2)}
     }
     this.eventCountStore.get(projectId)!.set(eventName, count);
   }
+
+  // Add a cleanup method
+  public async cleanup() {
+    if (this.runner?.isRunning()) {
+      await this.runner.stop();
+      this.isRunning = false;
+      this.runner = null;
+    }
+  }
+
+  // this is neccessa
+    private setupCleanupHandlers() {
+    process.on('exit', () => {
+      console.debug('🧹 Cleaning up Telegram service on exit');
+      this.cleanup();
+    });
+
+    process.on('uncaughtException', async (error) => {
+      console.error('❌ Uncaught Exception:', error);
+      console.debug('🧹 Cleaning up Telegram service after error');
+      await this.cleanup();
+      process.exit(1);
+    });
+
+    process.on('SIGINT', () => {
+      console.debug('🛑 Received SIGINT, cleaning up Telegram service');
+      this.cleanup();
+      process.exit(0);
+    });
+
+    process.on('SIGTERM', () => {
+      console.debug('🛑 Received SIGTERM, cleaning up Telegram service');
+      this.cleanup();
+      process.exit(0);
+    });
+  }
 }
+

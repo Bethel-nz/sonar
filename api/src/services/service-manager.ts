@@ -34,5 +34,4 @@ export class ServiceManager {
   }
 }
 
-// Export a singleton instance
 export const serviceManager = new ServiceManager();
