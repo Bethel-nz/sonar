@@ -1,0 +1,28 @@
+{
+  "name": "dashboard",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "dev": "rsbuild dev --port 3001",
+    "build": "rsbuild build",
+    "preview": "rsbuild preview"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@tanstack/router-plugin": "^1.76.4",
+    "@rsbuild/core": "^1.0.2",
+    "@rsbuild/plugin-react": "^1.0.1"
+  },
+  "dependencies": {
+    "@tanstack/react-router": "^1.77.6",
+    "@tanstack/router-devtools": "^1.77.6",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "trustedDependencies": [
+    "core-js"
+  ]
+}
