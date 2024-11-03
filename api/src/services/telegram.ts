@@ -22,6 +22,7 @@ export class TelegramService implements NotificationService {
   private projectChannels: Map<string, string> = new Map(); // projectId -> chatId
   private isRunning: boolean = false;
   private runner: { isRunning(): boolean; stop(): Promise<void> } | null = null;
+  private pausedProjects: Map<string, Date> = new Map();
 
   private constructor() {
     const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -79,6 +80,9 @@ export class TelegramService implements NotificationService {
         { command: 'help', description: 'Show help' },
         { command: 'status', description: 'Check connection status' },
         { command: 'refresh', description: 'Refresh bot connection' },
+        { command: 'pause', description: 'Pause notifications (1-60 minutes)' },
+        { command: 'resume', description: 'Resume notifications' },
+        { command: 'privacy', description: 'View our privacy policy' },
       ]);
 
       this.bot.command('start', async (ctx) => {
@@ -99,7 +103,8 @@ export class TelegramService implements NotificationService {
           '/start - Start the bot\n' +
           '/connect <project_id> <api_key> - Connect to a project\n' +
           '/status - Check current connection status\n' +
-          '/help - Show this help message\n\n' +
+          '/help - Show this help message\n' +
+          '/privacy - View our privacy policy\n\n' +
           'Once connected, you\'ll receive notifications for your workflow events here.',
           { parse_mode: 'Markdown' }
         );
@@ -262,6 +267,78 @@ export class TelegramService implements NotificationService {
         }
       });
 
+      // Add pause command handler
+      this.bot.command('pause', async (ctx) => {
+        const chatId = ctx.chat.id.toString();
+        const minutes = parseInt(ctx.message?.text?.split(' ')[1] || '0');
+
+        if (!minutes || minutes < 1 || minutes > 60) {
+          await ctx.reply(
+            '❌ Invalid duration!\n\n' +
+            'Usage: /pause <minutes>\n' +
+            'Example: /pause 30\n\n' +
+            'Duration must be between 1 and 60 minutes.'
+          );
+          return;
+        }
+
+        try {
+          const registration = await drizzle.query.telegramChannels.findFirst({
+            where: eq(telegramChannels.chatId, chatId)
+          });
+
+          if (!registration) {
+            await ctx.reply('❌ This chat is not connected to any project.');
+            return;
+          }
+
+          const until = new Date(Date.now() + minutes * 60 * 1000);
+          this.pausedProjects.set(registration.projectId, until);
+
+          await ctx.reply(
+            `✅ Notifications paused for ${minutes} minutes.\n` +
+            `Will resume at: ${until.toLocaleTimeString()}`
+          );
+        } catch (error) {
+          console.error('Pause error:', error);
+          await ctx.reply('❌ Failed to pause notifications.');
+        }
+      });
+
+      // Add resume command handler
+      this.bot.command('resume', async (ctx) => {
+        const chatId = ctx.chat.id.toString();
+
+        try {
+          const registration = await drizzle.query.telegramChannels.findFirst({
+            where: eq(telegramChannels.chatId, chatId)
+          });
+
+          if (!registration) {
+            await ctx.reply('❌ This chat is not connected to any project.');
+            return;
+          }
+
+          const wasPaused = this.pausedProjects.delete(registration.projectId);
+
+          await ctx.reply(
+            wasPaused 
+              ? '✅ Notifications resumed successfully.'
+              : '❓ Notifications were not paused.'
+          );
+        } catch (error) {
+          console.error('Resume error:', error);
+          await ctx.reply('❌ Failed to resume notifications.');
+        }
+      });
+
+      // Add privacy command handler
+      this.bot.command('privacy', async (ctx) => {
+        await ctx.reply(
+          '🔒 View our privacy policy:\nhttps://github.com/Bethel-nz/sonar/blob/main/privacy-policy.md'
+        );
+      });
+
       setInterval(async () => {
         try {
           const mappings = await drizzle.query.telegramChannels.findMany();
@@ -276,7 +353,7 @@ export class TelegramService implements NotificationService {
         } catch (error) {
           console.error('Error in health check:', error);
         }
-      }, 360000); // Check every minute
+      }, 360000);
 
       // Error handling
       this.bot.catch((err) => {
@@ -325,6 +402,17 @@ export class TelegramService implements NotificationService {
   }
 
   async sendNotification(message: ServiceMessage): Promise<void> {
+    // Check if project is paused
+    const pausedUntil = this.pausedProjects.get(message.projectId);
+    if (pausedUntil) {
+      if (pausedUntil > new Date()) {
+        // Still paused
+        return;
+      }
+      // Pause expired, remove it
+      this.pausedProjects.delete(message.projectId);
+    }
+
     const chatId = this.projectChannels.get(message.projectId);
     if (!chatId) {
       console.warn(`No Telegram chat found for project ${message.projectId}`);
@@ -353,6 +441,7 @@ ${severityEmoji[message.severity]} *New Event in ${message.workflowName}*
 *Event:* ${message.eventName}
 *Description:* ${message.description}
 *Severity:* ${message.severity}
+*Tags:* ${message.tags.join(', ')}
 *Next Event:* ${message.nextEvent || 'Not specified'}
 *Time:* ${formattedTime}
 *Count:* ${newCount}

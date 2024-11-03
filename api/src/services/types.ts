@@ -3,6 +3,7 @@ export interface ServiceMessage {
   workflowName: string;
   eventName: string;
   description: string;
+  tags: string[];
   severity: 'info' | 'warn' | 'error' | 'critical';
   payload: Record<string, unknown>;
   timestamp: Date;
@@ -11,4 +12,5 @@ export interface ServiceMessage {
 
 export interface NotificationService {
   sendNotification(message: ServiceMessage): Promise<void>;
+  isPaused?(projectId: string): boolean;
 }
