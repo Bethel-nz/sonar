@@ -42,13 +42,13 @@ class Workflow<T extends WorkflowEventMap> {
   }
   on<K extends keyof T>(
     eventName: K,
-    config: Config & { schema: T[K]['schema'] },
-    payloadFn: PayloadFunction<z.infer<T[K]['schema']>>,
+    config: Config & { schema?: T[K]['schema'] },
+    payloadFn: PayloadFunction<T[K]['data']>,
     services: Services
   ): {
     next: <NextK extends string>(
       nextEventName: NextK,
-      nextFn?: (data: z.infer<T[K]['schema']>) => void | Promise<void>
+      nextFn?: (data: T[K]['data']) => void | Promise<void>
     ) => void;
   } {
     ConfigSchema.parse(config);
@@ -64,7 +64,7 @@ class Workflow<T extends WorkflowEventMap> {
     return {
       next: <NextK extends string>(
         nextEventName: NextK,
-        nextFn?: (data: ReturnType<PayloadFunction<z.infer<T[K]['schema']>>>) => void | Promise<void>
+        nextFn?: (data: T[K]['data']) => void | Promise<void>
       ) => {
         this.events[eventName].nextEvent = nextEventName;
         if (nextFn) {
@@ -77,7 +77,7 @@ class Workflow<T extends WorkflowEventMap> {
 
   async emit<K extends keyof T>(params: {
     event: K;
-    data: z.infer<T[K]['schema']>;
+    data: T[K]['data'];
   }) {
     this.emitQueue = this.emitQueue.then(() => this.emitEvent(params));
     return this.emitQueue;
@@ -85,11 +85,15 @@ class Workflow<T extends WorkflowEventMap> {
 
   private async emitEvent<K extends keyof T>(params: {
     event: K;
-    data: z.infer<T[K]['schema']>;
+    data: T[K]['data'];
   }) {
     const eventConfig = this.events[params.event];
     if (!eventConfig) {
       throw new Error(`Event ${String(params.event)} not registered`);
+    }
+
+    if (eventConfig.schema) {
+      eventConfig.schema.parse(params.data);
     }
 
     const { config, payloadFn, services, nextEvent, onNextEvent } = eventConfig;
@@ -134,7 +138,6 @@ class Workflow<T extends WorkflowEventMap> {
       );
       throw error;
     } finally {
-      // Execute onNextEvent callback if it exists, regardless of SDK success/failure
       if (onNextEvent) {
         try {
           await onNextEvent(params.data);

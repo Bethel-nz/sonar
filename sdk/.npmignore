@@ -1,0 +1,27 @@
+# Source
+src/
+tests/
+examples/
+
+# Config files
+tsconfig.json
+.eslintrc
+.prettierrc
+.gitignore
+
+# Development
+node_modules/
+coverage/
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.*
+
+# Build process
+tsup.config.ts 

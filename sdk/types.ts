@@ -25,30 +25,30 @@ export type Services = {
 
 export type PayloadFunction<T> = (data: T) => any;
 
-// Ensure schema is always a Zod type
+// Make schema optional in WorkflowEventMap
 export type WorkflowEventMap = {
   [K: string]: {
-    schema: z.ZodType<any>;
-    data: z.infer<z.ZodType<any>>;
+    schema?: z.ZodType<any>;
+    data: any;
   };
 };
 
-// Define the structure of events in the workflow
+// Update WorkflowDefinition to handle optional schema
 export type WorkflowDefinition<T extends WorkflowEventMap> = {
   events: {
     [K in keyof T]: {
-      config: Config & { schema: T[K]['schema'] };
-      schema: T[K]['schema'];
+      config: Config & { schema?: T[K]['schema'] };
+      schema?: T[K]['schema'];
       services: string[];
-      payloadFn: PayloadFunction<z.infer<T[K]['schema']>>;
+      payloadFn: PayloadFunction<T[K]['data']>;
       nextEvent?: string;
-      onNextEvent?: (data: ReturnType<PayloadFunction<T[K]['data']>>) => void | Promise<void>;
+      onNextEvent?: (data: T[K]['data']) => void | Promise<void>;
     };
   };
 };
 
 export interface EventConfig<T> {
-  config: Config & { schema?: z.ZodType<T> }; // Include schema here
+  config: Config & { schema?: z.ZodType<T> };
   payloadFn: PayloadFunction<T>;
   services: Services;
   nextEvent?: string;
