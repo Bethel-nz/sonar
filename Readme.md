@@ -108,7 +108,7 @@ Both Discord and Telegram bots support:
 
 Still a work in progress
 
-See [examples](./usages) directory for more use cases and patterns.
+See [examples](./usage) directory for more use cases and patterns.
 
 ## 🤝 Contributing
 
