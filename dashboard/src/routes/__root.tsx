@@ -1,13 +1,12 @@
+import { createRootRouteWithContext } from '@tanstack/react-router';
 
-import { createRootRouteWithContext } from '@tanstack/react-router'
-
-import type { AuthContext } from '~auth'
-import View from '~layout/view'
+import type { AuthContext } from '~auth';
+import View from '~layout/view';
 
 interface MyRouterContext {
-  auth: AuthContext
+	auth: AuthContext;
 }
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
-  component: View
-})
+	component: View,
+});

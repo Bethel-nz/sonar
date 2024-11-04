@@ -1,11 +1,19 @@
-import { useState, createContext, useContext, useEffect, useCallback, useMemo, ReactNode } from 'react';
+import {
+	useState,
+	createContext,
+	useContext,
+	useEffect,
+	useCallback,
+	useMemo,
+	ReactNode,
+} from 'react';
 import Cookies from 'js-cookie';
 import ky from 'ky';
 
 export interface AuthContext {
 	isAuthenticated: boolean;
 	login: (email: string, password: string) => Promise<void>;
-	signup: (value:{ email: string, username: string, password: string }) => Promise<void>;
+	signup: (value: { email: string; username: string; password: string }) => Promise<void>;
 	logout: () => Promise<void>;
 	user: User | null;
 }
@@ -42,7 +50,7 @@ function setStoredUser(user: User | null) {
 
 const api = ky.create({
 	prefixUrl: 'http://localhost:5390/api/v1',
-	credentials: 'include'
+	credentials: 'include',
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -54,27 +62,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		formData.append('email', email);
 		formData.append('password', password);
 
-		const response = await api.post('auth/login', {
-			body: formData
-		}).json<{ user: User }>();
+		const response = await api
+			.post('auth/login', {
+				body: formData,
+			})
+			.json<{ user: User }>();
 
 		setStoredUser(response.user);
 		setUser(response.user);
 	}, []);
 
-	const signup = useCallback(async (value:{email: string, username: string, password: string}) => {
-		const formData = new FormData();
-		formData.append('email', value.email);
-		formData.append('username', value.username);
-		formData.append('password', value.password);
+	const signup = useCallback(
+		async (value: { email: string; username: string; password: string }) => {
+			const formData = new FormData();
+			formData.append('email', value.email);
+			formData.append('username', value.username);
+			formData.append('password', value.password);
 
-		const response = await api.post('auth/signup', {
-			body: formData
-		}).json<{ user: User }>();
+			const response = await api
+				.post('auth/signup', {
+					body: formData,
+				})
+				.json<{ user: User }>();
 
-		setStoredUser(response.user);
-		setUser(response.user);
-	}, []);
+			setStoredUser(response.user);
+			setUser(response.user);
+		},
+		[],
+	);
 
 	const logout = useCallback(async () => {
 		try {
@@ -89,19 +104,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		setUser(getStoredUser());
 	}, []);
 
-	const value = useMemo(() => ({
-		isAuthenticated,
-		user,
-		login,
-		logout,
-		signup
-	}), [isAuthenticated, user, login, logout, signup]);
+	const value = useMemo(
+		() => ({
+			isAuthenticated,
+			user,
+			login,
+			logout,
+			signup,
+		}),
+		[isAuthenticated, user, login, logout, signup],
+	);
 
 	return (
 		<>
-			<AuthContext.Provider value={value}>
-				{children}
-			</AuthContext.Provider>
+			<AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 		</>
 	);
 }
@@ -131,5 +147,5 @@ export const projectApi = {
 		const formData = new FormData();
 		formData.append('name', name);
 		return api.put(`projects/${projectId}/workflows/${workflowId}`, { body: formData }).json();
-	}
-}; 
+	},
+};

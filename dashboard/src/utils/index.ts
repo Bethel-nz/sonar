@@ -1,4 +1,3 @@
-import { cx } from './cx'
+import { cx } from './cx';
 
-export { cx }
-
+export { cx };
