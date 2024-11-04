@@ -96,7 +96,7 @@ export default async function testErrorWorkflow() {
 testErrorWorkflow();
 
 /*
-This is not the intended usage, i just cant write a complex application using it but if you were to use it in such a cash you would write it like ths:
+This is not the intended usage, i just cant write a complex application using it but if you were to use it in an application, you would write it like ths:
 
 // your workflow defininion
 const myworkflow = workflow("something", {...})
