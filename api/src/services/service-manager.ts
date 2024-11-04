@@ -15,7 +15,7 @@ export class ServiceManager {
       this.services.set('Telegram', TelegramService.getInstance());
     }
 
-    if (process.env.DISCORD_WEBHOOK_URL) {
+    if (process.env.DISCORD_BOT_TOKEN) {
       this.services.set('Discord', new DiscordService());
     }
   }

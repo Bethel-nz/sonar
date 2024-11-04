@@ -36,10 +36,7 @@ export class DiscordService implements NotificationService {
       intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildPresences,
-        GatewayIntentBits.DirectMessages
+        GatewayIntentBits.DirectMessages,
       ]
     });
     this.initializeClient();

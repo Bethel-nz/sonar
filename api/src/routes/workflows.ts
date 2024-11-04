@@ -104,14 +104,14 @@ workflow.get('/', async (c) => {
 workflow.put(
   '/:workflowName',
   zValidator(
-    'json',
+    'form',
     z.object({
       name: z.string().min(1).max(255),
     })
   ),
   async (c) => {
     const workflow = c.get('workflow');
-    const { name } = c.req.valid('json');
+    const { name } = c.req.valid('form');
  
     try {
       const updatedWorkflow = await drizzle
