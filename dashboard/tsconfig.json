@@ -1,10 +1,44 @@
 {
   "compilerOptions": {
-    "strict": true,
-    "esModuleInterop": true,
-    "jsx": "react-jsx",
-    "target": "ESNext",
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
-    "moduleResolution": "Bundler"
-  }
+    "skipLibCheck": true,
+    
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+
+    /* Added for TanStack Router */
+    "strictNullChecks": true,
+
+    //configure base path
+    "baseUrl": "./",
+    "paths": {
+      "~*": ["src/*", "*"],
+      "~ui/*": ["src/components/ui/*", "components/ui/*"],
+      "~route/*": ["src/routes/*", "routes/*"],
+      "~layout/*": ["src/layout/*", "layout/*"],
+      "~components/*": ["src/components/*", "components/*"],
+      "~hooks/*": ["src/hooks/*", "hooks/*"],
+      "~pages/*": ["src/components/pages/*", "pages/*"],
+      "~store/*": ["src/store/*", "store/*"],
+      "~assets/*": ["src/assets/*", "assets/*"],
+      "~utils/*": ["src/utils/*", "utils/*"]
+    }
+  },
+
+  "include": ["src"]
 }
