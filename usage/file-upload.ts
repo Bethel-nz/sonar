@@ -54,6 +54,23 @@ export const uploadWorkflow = workflow<UploadEvents>('FileUpload', (wf) => {
     }),
     { service: ['Discord', 'Telegram'] }
   ).next('completed');
+
+    wf.on("completed",{
+      description:"File upload workflow completed",
+      severity:"info",
+      tags:["upload", "completed"],
+      schema: z.object({
+        fileId:z.string(),
+        url:z.string(),
+        duration:z.number()
+      })
+    },(data)=>({
+      fileId:data.fileId,
+      url:data.url,
+      duration:`${data.duration} seconds`
+    }),
+    {service:["Discord"]}
+  )
 }); 
 
 
@@ -97,3 +114,6 @@ export default async function testUploadWorkflow() {
     console.error('❌ File Upload Workflow test failed:', error);
   }
 } 
+
+
+testUploadWorkflow()

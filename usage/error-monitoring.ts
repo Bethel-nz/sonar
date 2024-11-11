@@ -48,6 +48,34 @@ export const errorWorkflow = workflow<ErrorEvents>('ErrorMonitoring', (wf) => {
     }),
     { service: ['Discord', 'Telegram'] }
   ).next('investigated');
+
+  wf.on('investigated', {
+    description: 'Error investigated',
+    severity: 'info',
+    tags: ['error', 'monitoring'],
+    schema: z.object({
+      errorId: z.string(),
+      diagnosis: z.string()
+    })
+  }, (data) => ({
+    id: data.errorId,
+    diagnosis: data.diagnosis
+  }), { service: ['Discord', 'Telegram'] });
+
+  wf.on('resolved', {
+    description: 'Error resolved',
+    severity: 'info',
+    tags: ['error', 'monitoring'],
+    schema: z.object({
+      errorId: z.string(),
+      solution: z.string(),
+      timeToResolve: z.number()
+    })
+  }, (data) => ({
+    id: data.errorId,
+    solution: data.solution,
+    timeToResolve: data.timeToResolve
+  }), { service: ['Discord', 'Telegram'] });  
 }); 
 
 export default async function testErrorWorkflow() {

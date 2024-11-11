@@ -54,7 +54,34 @@ export const orderWorkflow = workflow<OrderEvents>('OrderProcessing', (wf) => {
     }),
     { service: ['Discord', 'Telegram'] }
   ).next('shipped');
-}); 
+
+  wf.on("shipped", {
+    description: 'Order shipped',
+    severity: 'info',
+    tags: ['order', 'shipping'],
+    schema: z.object({
+      orderId: z.string(),
+      trackingNumber: z.string()
+    })
+  }, (data) => ({
+    order: data.orderId,
+    tracking: data.trackingNumber
+    }),
+    { service: ['Discord', 'Telegram'] }
+  );
+
+  wf.on('delivered', {
+    description: 'Order delivered',
+    severity: 'info',
+      tags: ['order', 'delivery'],
+    },
+    (data) => ({
+      order: data.orderId,
+      deliveryDate: data.deliveryDate
+    }),
+    { service: ['Discord', 'Telegram'] }
+  );  
+});   
 
 
 export default async function testOrderWorkflow() {

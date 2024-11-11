@@ -69,7 +69,20 @@ type UserSignupEvents = {
       email: data.email
     }),
     { service: ['Discord', 'Telegram'] }
-  );
+   );
+   
+   wf.on('failed', {
+    description: 'User signup failed',
+    severity: 'error',
+    tags: ['auth', 'signup'],
+    schema: z.object({
+      email: z.string().email(),
+      reason: z.string()
+    })
+   }, (data) => ({
+    email: data.email,
+    reason: data.reason
+   }), { service: ['Discord'] }); 
 }); 
 
 export default async function testSignupWorkflow() {
