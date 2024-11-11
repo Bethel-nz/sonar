@@ -9,53 +9,18 @@ import workflowMiddleware from './middleware/workflow-middleware';
 import projectMiddleware from './middleware/project-middleware';
 import { startKeepAliveJob } from './utils/keep-alive';
 import {Events as events} from "./routes/events"
+import cors from './middleware/cors-middleware';
 
 config();
 
 const app = new Hono();
 const api = new Hono().basePath('/api/v1');
 
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN as string;
 
 app.use('*', logger());
 
 // Custom CORS middleware limits requests to the frontend and SDK
-app.use('*', async (c, next) => {
-  const origin = c.req.header('Origin');
-  const method = c.req.method;
-
-  // Set basic CORS headers for all requests
-  c.res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  c.res.headers.set('Access-Control-Allow-Credentials', 'true');
-  
-  if (origin === FRONTEND_ORIGIN) {
-    // Frontend can access all methods
-    c.res.headers.set('Access-Control-Allow-Origin', FRONTEND_ORIGIN);
-    c.res.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    
-    if (method === 'OPTIONS') {
-      return c.json(null, 204);
-    }
-    
-    return next();
-  } else {
-    c.res.headers.set('Access-Control-Allow-Origin', '*');
-    c.res.headers.set('Access-Control-Allow-Methods', 'POST');
-    
-    if (method === 'OPTIONS') {
-      return c.json(null, 204);
-    }
-    
-    if (method === 'POST') {
-      return next();
-    }
-    
-    return c.json({ 
-      error: 'Forbidden',
-      message: 'Only POST requests are allowed from external origins'
-    }, 403);
-  }
-});
+app.use('*', cors);
 
 // Public auth routes
 api.route('/auth', auth);
