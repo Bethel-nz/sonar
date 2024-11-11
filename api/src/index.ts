@@ -7,7 +7,8 @@ import project from './routes/project';
 import workflows from './routes/workflows';
 import workflowMiddleware from './middleware/workflow-middleware';
 import projectMiddleware from './middleware/project-middleware';
-import { TelegramService } from './services/telegram';
+import { startKeepAliveJob } from './utils/keep-alive';
+import {Events as events} from "./routes/events"
 
 config();
 
@@ -24,13 +25,13 @@ app.use('*', async (c, next) => {
   const method = c.req.method;
 
   // Set basic CORS headers for all requests
-  c.res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, SONAR_API_KEY');
+  c.res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   c.res.headers.set('Access-Control-Allow-Credentials', 'true');
   
   if (origin === FRONTEND_ORIGIN) {
     // Frontend can access all methods
     c.res.headers.set('Access-Control-Allow-Origin', FRONTEND_ORIGIN);
-    c.res.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    c.res.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     
     if (method === 'OPTIONS') {
       return c.json(null, 204);
@@ -38,7 +39,6 @@ app.use('*', async (c, next) => {
     
     return next();
   } else {
-    // SDK/External origins can only make POST requests
     c.res.headers.set('Access-Control-Allow-Origin', '*');
     c.res.headers.set('Access-Control-Allow-Methods', 'POST');
     
@@ -66,9 +66,10 @@ api.use('/projects/*', projectMiddleware);
 api.use('/projects/:projectId/workflows/:workflowName/*', workflowMiddleware);
 
 // API routes
-api.route('/projects/:projectId/workflows/:workflowName/events', workflows);
+api.route('/projects', project);  
 api.route('/projects/:projectId/workflows', workflows);
-api.route('/projects', project);
+api.route('/projects/:projectId/workflows/:workflowName/events', events);
+api.route('/projects/:projectId/workflows/:workflowName', workflows);
 
 // Mount API routes
 app.route('', api);
@@ -81,6 +82,8 @@ app.onError((err, c) => {
     message: process.env.NODE_ENV === 'development' ? err.message : undefined 
   }, 500);
 });
+
+startKeepAliveJob();
 
 export default {
   port: process.env.PORT || 5390,

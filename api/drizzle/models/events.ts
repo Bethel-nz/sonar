@@ -6,6 +6,7 @@ import {
   text,
   uuid,
   integer,
+  index,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { workflows } from './workflows';
@@ -28,7 +29,11 @@ export const events = pgTable('events', {
   count: integer('count').notNull().default(1),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
-});
+}, (table) => ({
+  workflowIdIdx: index('event_workflow_id_idx').on(table.workflowId),
+  nameWorkflowIdx: index('event_name_workflow_idx').on(table.name, table.workflowId),
+  createdAtIdx: index('event_created_at_idx').on(table.createdAt),
+}));
 
 export type Event = typeof events.$inferSelect;
 export type NewEvent = typeof events.$inferInsert;

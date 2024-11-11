@@ -5,4 +5,4 @@ export { default as events, eventsRelations } from '~models/events';
 export { default as telegramChannels, telegramChannelsRelations } from "~models/telegram-channels"
 export { default as discordChannels, discordChannelsRelations } from "~models/discord-channel"
 
-console.log('DB Schema Generated Bitch!');
+console.log('DB Schema Generated!');

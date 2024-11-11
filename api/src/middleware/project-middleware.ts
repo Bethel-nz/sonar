@@ -5,6 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { Project } from '~drizzle/models/projects';
 import { User } from '~drizzle/models/users';
 import { Context, Next } from "hono";
+import { getRouteParams } from '~utils/routeMatcher';
 
 type MiddlewareVariables = {
   Variables: {
@@ -18,10 +19,12 @@ type MiddlewareVariables = {
 
 const projectMiddleware = createMiddleware<MiddlewareVariables>(
   async (c, next) => {
-    const projectId = c.get('projectId') as string;
+    
+    const {projectId} = getRouteParams(c.req.path)
     const isApiKeyAuth = c.get('isApiKeyAuth');
     const project = c.get('project');
-    const user = c.get('user');
+    const user = c.get('user') as User
+    
 
     if (isApiKeyAuth && project && projectId) {
       return next();
@@ -46,7 +49,6 @@ const projectMiddleware = createMiddleware<MiddlewareVariables>(
           404
         );
       }
-
       c.set('project', userProject);
     }
 

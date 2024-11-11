@@ -361,7 +361,10 @@ export class TelegramService implements NotificationService {
       });
 
       // Start the bot with runner
-      this.runner = run(this.bot);
+      this.runner = run(this.bot, {runner: {
+        retryInterval: 1000,
+        maxRetryTime: 10000
+      }});
       this.isRunning = true;
 
       // Load existing mappings

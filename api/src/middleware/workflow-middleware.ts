@@ -5,6 +5,7 @@ import { Workflow } from '~drizzle/models/workflows';
 import { Project } from '~drizzle/models/projects';
 import { Event } from '~drizzle/models/events';
 import { createMiddleware } from 'hono/factory';
+import { getRouteParams } from '~utils/routeMatcher';
 
 const workflowMiddleware = createMiddleware<{
   Variables: {
@@ -15,9 +16,16 @@ const workflowMiddleware = createMiddleware<{
     workflowName: string;
   };
 }>(async (c, next) => {
-  const workflowName = c.get('workflowName');
-  const project = c.get('project');
+  const {workflowName} = getRouteParams(c.req.path)
+  const project = await c.get('project') as Project;
   const isApiKeyAuth = c.get('isApiKeyAuth');
+
+  console.log({
+    context: 'workflow-middleware',
+    workflowName,
+    projectId: project.id,
+    projectName: project.name
+  });
 
   if (!workflowName) {
     return c.json({ error: 'Workflow name is required' }, 400);

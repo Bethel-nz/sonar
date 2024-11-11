@@ -1,4 +1,4 @@
-import { pgTable, uuid, integer, varchar, timestamp, index} from 'drizzle-orm/pg-core';
+import { pgTable, uuid, integer, varchar, timestamp, index } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { projects } from './projects';
 
@@ -15,7 +15,11 @@ const users = pgTable(
   },
   (table) => {
     return {
-      emailIndex: index('emailIndex').on(table.email),
+      emailIdx: index('user_email_idx').on(table.email),
+      usernameIdx: index('user_username_idx').on(table.username),
+      userEmailIdx: index('user_username_email_idx').on(table.username, table.email),
+      createdAtIdx: index('user_created_at_idx').on(table.createdAt),
+      updatedAtIdx: index('user_updated_at_idx').on(table.updatedAt),
     };
   }
 );

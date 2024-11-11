@@ -7,6 +7,7 @@ import { generateToken, verifyToken, secret, refreshSecret } from '~utils/auth';
 import { and, eq } from 'drizzle-orm';
 import { createMiddleware } from 'hono/factory';
 import { isProduction } from '~utils/constants';
+import {getRouteParams} from "~utils/routeMatcher"
 
 const publicRoutes = [
 
@@ -26,15 +27,12 @@ export const authMiddleware = createMiddleware<{
 }>(async (c, next) => {
   const path = c.req.path;
 
-
     /** 
     - i cant read the params here i have to use a regex to extract it
     */
-    const projectIdMatch = path.match(/\/projects\/([^\/]+)/);
-    const workflowMatch = path.match(/\/workflows\/([^\/]+)/);
+const { projectId, workflowName } = getRouteParams(path);
 
-    const projectId = projectIdMatch ? projectIdMatch[1] : null;
-    const workflowName = workflowMatch ? workflowMatch[1] : null;
+
 
 
   if (publicRoutes.includes(path)) {
@@ -89,12 +87,12 @@ export const authMiddleware = createMiddleware<{
   if (!token && refreshToken) {
     try {
       const decodedRefresh = verifyToken(refreshToken, refreshSecret) as User;
-      const newToken = generateToken(decodedRefresh, '15m');
+      const newToken = generateToken(decodedRefresh, '1h');
       await setSignedCookie(c, 'sonar_token', newToken!, secret, {
         httpOnly: true,
         secure: isProduction,
-        sameSite: 'None',
-        maxAge: 900,
+        sameSite: 'Lax',
+        maxAge: 3600,
         domain: isProduction ? '.sonar.sh' : 'localhost',
       });
       c.set('user', decodedRefresh);

@@ -7,10 +7,11 @@ import {
   comparePassword,
   secret,
   refreshSecret,
+  verifyToken,
 } from '../utils/auth';
 import drizzle from '../../drizzle';
 import { users } from '../../drizzle/schema';
-import { setSignedCookie, deleteCookie } from 'hono/cookie';
+import { setSignedCookie, deleteCookie, getSignedCookie } from 'hono/cookie';
 import { isProduction } from '~utils/constants';
 import { zValidator } from '@hono/zod-validator';
 
@@ -27,11 +28,23 @@ const loginSchema = z.object({
   password: z.string().min(6).max(12),
 });
 
+// Common cookie settings
+const cookieSettings = {
+  httpOnly: true,
+  secure: true,
+  sameSite: 'None' as const,
+  path: '/',
+  domain: isProduction ? process.env.COOKIE_DOMAIN : undefined
+};
+
 auth.post('/signup', zValidator('form', signupSchema), async (c) => {
   const body = await c.req.valid('form');
   const result = signupSchema.safeParse(body);
 
-  if (!result.success) return c.json({error: 'Input doesnt Match Expected Data'}, 400);
+  if (!result.success) {
+    console.log(result.error);
+    return c.json({ error: 'Input doesnt Match Expected Data' }, 400);
+  }
 
   const { username, email, password } = result.data;
 
@@ -48,15 +61,12 @@ auth.post('/signup', zValidator('form', signupSchema), async (c) => {
       password: hashedPassword,
     })
     .returning();
-  const token = generateToken(user, '15m');
+  const token = generateToken(user, '1h');
   const refreshToken = generateToken(user, '7d');
 
   await setSignedCookie(c, 'sonar_token', token!, secret, {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: 'None',
-    maxAge: 900, // 15 minutes
-    domain: isProduction ? '.sonar.sh' : 'localhost',
+    ...cookieSettings,
+    maxAge: 3600, // 1 hour
   });
 
   await setSignedCookie(
@@ -65,15 +75,20 @@ auth.post('/signup', zValidator('form', signupSchema), async (c) => {
     refreshToken!,
     refreshSecret,
     {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: 'None',
+      ...cookieSettings,
       maxAge: 604800, // 7 days
-      domain: isProduction ? '.sonar.sh' : 'localhost',
     }
   );
 
-  return c.json({message: 'User created successfully'}, 201);
+  return c.json({
+    message: 'User created successfully',
+    user: {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      createdAt: user.createdAt
+    }
+  }, 201);
 });
 
 auth.post('/login', zValidator('form', loginSchema), async (c) => {
@@ -92,15 +107,12 @@ auth.post('/login', zValidator('form', loginSchema), async (c) => {
   if (!user || !(await comparePassword(password, user.password))) return c.json({error: 'Invalid credentials or user doesnt exist'}, 400);
   
 
-  const token = generateToken(user, '15m');
+  const token = generateToken(user, '1h');
   const refreshToken = generateToken(user, '7d');
 
   await setSignedCookie(c, 'sonar_token', token!, secret, {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: 'None',
+    ...cookieSettings,
     maxAge: 900, // 15 minutes
-    domain: isProduction ? '.sonar.sh' : 'localhost',
   });
 
   await setSignedCookie(
@@ -109,15 +121,44 @@ auth.post('/login', zValidator('form', loginSchema), async (c) => {
     refreshToken!,
     refreshSecret,
     {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: 'None',
+      ...cookieSettings,
       maxAge: 604800, // 7 days
-      domain: isProduction ? '.sonar.sh' : 'localhost',
     }
   );
 
-  return c.json({message: 'User logged in successfully'}, 200);
+  return c.json({
+    message: 'User logged in successfully',
+    user: {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      createdAt: user.createdAt
+    }
+  }, 200);
+});
+
+auth.get('/me', async (c) => {
+  const token = await getSignedCookie(c, secret, 'sonar_token');
+  if (!token) return c.json({message: 'No active session found'}, 401);
+  
+  const decoded = verifyToken(token, secret);
+  if (!decoded) return c.json({message: 'Invalid token'}, 401);
+
+  const user = await drizzle.query.users.findFirst({
+    where: (users, { eq }) => eq(users.id, decoded.id),
+    columns: {
+      id: true,
+      email: true,
+      username: true,
+      createdAt: true
+    }
+  });
+
+  return c.json({ 
+    status: 'active', 
+    message: 'User logged in successfully',
+    user
+  }, 200);
 });
 
 auth.post('/logout', async (c) => {
