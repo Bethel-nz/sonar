@@ -23,5 +23,6 @@ export const routeParamExtractors = {
 // Or if you need multiple params:
 export const getRouteParams = (path: string) => ({
   projectId: routeParamExtractors.projectId(path),
-  workflowName: routeParamExtractors.workflowName(path)
+  workflowName: routeParamExtractors.workflowName(path),
+  eventId: routeParamExtractors.eventId(path)
 });

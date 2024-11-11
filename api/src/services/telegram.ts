@@ -363,7 +363,7 @@ export class TelegramService implements NotificationService {
       // Start the bot with runner
       this.runner = run(this.bot, {runner: {
         retryInterval: 1000,
-        maxRetryTime: 10000
+        maxRetryTime: Infinity // keep retrying until the bot is unblocked
       }});
       this.isRunning = true;
 
