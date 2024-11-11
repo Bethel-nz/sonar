@@ -32,7 +32,7 @@ const loginSchema = z.object({
 const cookieSettings = {
   httpOnly: true,
   secure: true,
-  sameSite: 'None' as const,
+  sameSite: 'Lax' as const,
   path: '/',
   domain: isProduction ? process.env.COOKIE_DOMAIN : undefined
 };

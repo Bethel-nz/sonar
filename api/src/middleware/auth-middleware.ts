@@ -91,7 +91,7 @@ const { projectId, workflowName } = getRouteParams(path);
       await setSignedCookie(c, 'sonar_token', newToken!, secret, {
         httpOnly: true,
         secure: isProduction,
-        sameSite: 'Lax',
+        sameSite: 'None',
         maxAge: 3600,
         domain: isProduction ? '.sonar.sh' : 'localhost',
       });
