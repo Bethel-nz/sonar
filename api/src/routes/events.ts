@@ -8,7 +8,7 @@ import { Workflow } from '~drizzle/models/workflows';
 import { Project } from '~drizzle/models/projects';
 import { serviceManager } from '../services/service-manager';
 import { logger } from "~utils/logger";
-import { EventQueueManager } from '../services/event-queue-manager';
+import { EventQueueManager } from '../utils/event-queue-manager';
 
 const eventQueue = new EventQueueManager();
 
