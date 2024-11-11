@@ -7,38 +7,37 @@ import type { EventConfig, Services, PayloadFunction,WorkflowEventMap, WorkflowD
 // workflow.ts
 class Workflow<T extends WorkflowEventMap> {
   private readonly events: WorkflowDefinition<T>['events'] = {} as WorkflowDefinition<T>['events'];
-  private readonly baseUrl = 'http://localhost:5390'; //<- hardcoded for now
+  private readonly baseUrl: string;
   private projectId: string;
   private apiKey: string;
   private emitQueue: Promise<any> = Promise.resolve();
 
   constructor(private readonly name: string) {
-    const apiKey = process.env.SONAR_API_KEY!;
-    const projectId = process.env.SONAR_PROJECT_ID!;
+    const apiKey = process.env.SONAR_API_KEY;
+    const projectId = process.env.SONAR_PROJECT_ID;
+    const baseUrl = process.env.SONAR_BASE_URL;
 
-    if (!apiKey || !isValidSonarKey(apiKey, 'apiKey')) {
-      const validation = validateSonarKey(apiKey, 'apiKey');
-      console.error(`
-        ${
-          validation.message ||
-          'SONAR API KEY IS INVALID OR MISSING FROM .env!!'
-        }
-      `);
+    if (!baseUrl || !apiKey || !projectId) {
+      throw new Error('Missing required environment variables');
     }
 
-    if (!projectId || !isValidSonarKey(projectId, 'projectId')) {
+    if (!isValidSonarKey(apiKey, 'apiKey')) {
+      const validation = validateSonarKey(apiKey, 'apiKey');
+      throw new Error(
+        `Invalid SONAR_API_KEY format: ${validation.message}`
+      );
+    }
+
+    if (!isValidSonarKey(projectId, 'projectId')) {
       const validation = validateSonarKey(projectId, 'projectId');
-      console.error(`
-        
-        ${
-          validation.message ||
-          'SONAR PROJECT ID IS INVALID OR MISSING FROM .env!!'
-        }
-      `);
+      throw new Error(
+        `Invalid SONAR_PROJECT_ID format: ${validation.message}`
+      );
     }
 
     this.projectId = projectId;
     this.apiKey = apiKey;
+    this.baseUrl = baseUrl;
   }
   on<K extends keyof T>(
     eventName: K,
@@ -159,7 +158,15 @@ class Workflow<T extends WorkflowEventMap> {
  * @param setup - A function that configures the workflow by adding event handlers.
  * @returns A configured Workflow instance.
  *
- * @example
+ 
+ */
+
+
+/**
+ * Creates a new workflow instance
+ * @param name - The name of the workflow
+ * @throws {WorkflowConfigError} When configuration is invalid
+* @example
  * ```typescript
  * const myWorkflow = workflow('MyWorkflow', (wf) => {
  *   wf.on('start',
@@ -175,35 +182,10 @@ class Workflow<T extends WorkflowEventMap> {
  *     console.log(`Processing data: ${data.data}`);
  *   });
  *
- *   wf.on('process',
- *     {
- *       description: 'Processing data',
- *       severity: 'info',
- *       tags: ['process']
- *     },
- *     (data: { data: string }) => ({ processedData: data.data }),
- *     { service: ['Discord'] }
- *   );
- *
- *   wf.on('end',
- *     {
- *       description: 'Workflow ended',
- *       severity: 'info',
- *       tags: ['end']
- *     },
- *     (data: { success: boolean }) => ({ result: data.success ? 'Success' : 'Failure' }),
- *     { service: ['Telegram', 'Discord'] }
- *   );
- * });
- *
  * // Usage:
  * await myWorkflow.emit({ event: 'start', data: { userId: '123' } });
- * await myWorkflow.emit({ event: 'process', data: { data: 'some data' } });
- * await myWorkflow.emit({ event: 'end', data: { success: true } });
  * ```
  */
-
-
 export function workflow<T extends WorkflowEventMap>(
   name: string,
   setup: (wf: Workflow<T>) => void
