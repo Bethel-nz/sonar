@@ -21,23 +21,22 @@ export async function withRetry<T>(action: () => Promise<T>, config: RetryConfig
 	} = config;
 
 	let attempts = 0;
+	try {
+		attempts++;
+		onAttempt?.(attempts);
 
-	while (attempts < maxAttempts) {
-		try {
-			attempts++;
-			onAttempt?.(attempts);
-
-			const result = await action();
+		const result = await action();
+		if (result) {
 			onSuccess?.(result);
 			return result;
-		} catch (error) {
-			onError?.(error, attempts);
-			resetAction?.();
+		}
+	} catch (error) {
+		onError?.(error, attempts);
+		resetAction?.();
 
-			if (attempts === maxAttempts) {
-				onMaxAttemptsReached?.();
-				throw error;
-			}
+		if (attempts === maxAttempts) {
+			onMaxAttemptsReached?.();
+			throw error;
 		}
 	}
 }

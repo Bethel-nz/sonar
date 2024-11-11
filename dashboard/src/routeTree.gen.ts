@@ -15,7 +15,13 @@ import { Route as AuthImport } from './routes/_auth'
 import { Route as AuthIndexImport } from './routes/_auth.index'
 import { Route as AuthSignupImport } from './routes/auth.signup'
 import { Route as AuthLoginImport } from './routes/auth.login'
+import { Route as AuthTestImport } from './routes/_auth.test'
+import { Route as AuthProjectsImport } from './routes/_auth.projects'
+import { Route as AuthDocsImport } from './routes/_auth.docs'
 import { Route as AuthAboutImport } from './routes/_auth.about'
+import { Route as AuthProjectsProjectIdImport } from './routes/_auth.projects.$projectId'
+import { Route as AuthProjectsProjectIdWorkflowsImport } from './routes/_auth.projects.$projectId.workflows'
+import { Route as AuthProjectsProjectIdWorkflowsWorkflowNameImport } from './routes/_auth.projects.$projectId.workflows.$workflowName'
 
 // Create/Update Routes
 
@@ -42,11 +48,49 @@ const AuthLoginRoute = AuthLoginImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
+const AuthTestRoute = AuthTestImport.update({
+  id: '/test',
+  path: '/test',
+  getParentRoute: () => AuthRoute,
+} as any)
+
+const AuthProjectsRoute = AuthProjectsImport.update({
+  id: '/projects',
+  path: '/projects',
+  getParentRoute: () => AuthRoute,
+} as any)
+
+const AuthDocsRoute = AuthDocsImport.update({
+  id: '/docs',
+  path: '/docs',
+  getParentRoute: () => AuthRoute,
+} as any)
+
 const AuthAboutRoute = AuthAboutImport.update({
   id: '/about',
   path: '/about',
   getParentRoute: () => AuthRoute,
 } as any)
+
+const AuthProjectsProjectIdRoute = AuthProjectsProjectIdImport.update({
+  id: '/$projectId',
+  path: '/$projectId',
+  getParentRoute: () => AuthProjectsRoute,
+} as any)
+
+const AuthProjectsProjectIdWorkflowsRoute =
+  AuthProjectsProjectIdWorkflowsImport.update({
+    id: '/workflows',
+    path: '/workflows',
+    getParentRoute: () => AuthProjectsProjectIdRoute,
+  } as any)
+
+const AuthProjectsProjectIdWorkflowsWorkflowNameRoute =
+  AuthProjectsProjectIdWorkflowsWorkflowNameImport.update({
+    id: '/$workflowName',
+    path: '/$workflowName',
+    getParentRoute: () => AuthProjectsProjectIdWorkflowsRoute,
+  } as any)
 
 // Populate the FileRoutesByPath interface
 
@@ -64,6 +108,27 @@ declare module '@tanstack/react-router' {
       path: '/about'
       fullPath: '/about'
       preLoaderRoute: typeof AuthAboutImport
+      parentRoute: typeof AuthImport
+    }
+    '/_auth/docs': {
+      id: '/_auth/docs'
+      path: '/docs'
+      fullPath: '/docs'
+      preLoaderRoute: typeof AuthDocsImport
+      parentRoute: typeof AuthImport
+    }
+    '/_auth/projects': {
+      id: '/_auth/projects'
+      path: '/projects'
+      fullPath: '/projects'
+      preLoaderRoute: typeof AuthProjectsImport
+      parentRoute: typeof AuthImport
+    }
+    '/_auth/test': {
+      id: '/_auth/test'
+      path: '/test'
+      fullPath: '/test'
+      preLoaderRoute: typeof AuthTestImport
       parentRoute: typeof AuthImport
     }
     '/auth/login': {
@@ -87,18 +152,86 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthIndexImport
       parentRoute: typeof AuthImport
     }
+    '/_auth/projects/$projectId': {
+      id: '/_auth/projects/$projectId'
+      path: '/$projectId'
+      fullPath: '/projects/$projectId'
+      preLoaderRoute: typeof AuthProjectsProjectIdImport
+      parentRoute: typeof AuthProjectsImport
+    }
+    '/_auth/projects/$projectId/workflows': {
+      id: '/_auth/projects/$projectId/workflows'
+      path: '/workflows'
+      fullPath: '/projects/$projectId/workflows'
+      preLoaderRoute: typeof AuthProjectsProjectIdWorkflowsImport
+      parentRoute: typeof AuthProjectsProjectIdImport
+    }
+    '/_auth/projects/$projectId/workflows/$workflowName': {
+      id: '/_auth/projects/$projectId/workflows/$workflowName'
+      path: '/$workflowName'
+      fullPath: '/projects/$projectId/workflows/$workflowName'
+      preLoaderRoute: typeof AuthProjectsProjectIdWorkflowsWorkflowNameImport
+      parentRoute: typeof AuthProjectsProjectIdWorkflowsImport
+    }
   }
 }
 
 // Create and export the route tree
 
+interface AuthProjectsProjectIdWorkflowsRouteChildren {
+  AuthProjectsProjectIdWorkflowsWorkflowNameRoute: typeof AuthProjectsProjectIdWorkflowsWorkflowNameRoute
+}
+
+const AuthProjectsProjectIdWorkflowsRouteChildren: AuthProjectsProjectIdWorkflowsRouteChildren =
+  {
+    AuthProjectsProjectIdWorkflowsWorkflowNameRoute:
+      AuthProjectsProjectIdWorkflowsWorkflowNameRoute,
+  }
+
+const AuthProjectsProjectIdWorkflowsRouteWithChildren =
+  AuthProjectsProjectIdWorkflowsRoute._addFileChildren(
+    AuthProjectsProjectIdWorkflowsRouteChildren,
+  )
+
+interface AuthProjectsProjectIdRouteChildren {
+  AuthProjectsProjectIdWorkflowsRoute: typeof AuthProjectsProjectIdWorkflowsRouteWithChildren
+}
+
+const AuthProjectsProjectIdRouteChildren: AuthProjectsProjectIdRouteChildren = {
+  AuthProjectsProjectIdWorkflowsRoute:
+    AuthProjectsProjectIdWorkflowsRouteWithChildren,
+}
+
+const AuthProjectsProjectIdRouteWithChildren =
+  AuthProjectsProjectIdRoute._addFileChildren(
+    AuthProjectsProjectIdRouteChildren,
+  )
+
+interface AuthProjectsRouteChildren {
+  AuthProjectsProjectIdRoute: typeof AuthProjectsProjectIdRouteWithChildren
+}
+
+const AuthProjectsRouteChildren: AuthProjectsRouteChildren = {
+  AuthProjectsProjectIdRoute: AuthProjectsProjectIdRouteWithChildren,
+}
+
+const AuthProjectsRouteWithChildren = AuthProjectsRoute._addFileChildren(
+  AuthProjectsRouteChildren,
+)
+
 interface AuthRouteChildren {
   AuthAboutRoute: typeof AuthAboutRoute
+  AuthDocsRoute: typeof AuthDocsRoute
+  AuthProjectsRoute: typeof AuthProjectsRouteWithChildren
+  AuthTestRoute: typeof AuthTestRoute
   AuthIndexRoute: typeof AuthIndexRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
   AuthAboutRoute: AuthAboutRoute,
+  AuthDocsRoute: AuthDocsRoute,
+  AuthProjectsRoute: AuthProjectsRouteWithChildren,
+  AuthTestRoute: AuthTestRoute,
   AuthIndexRoute: AuthIndexRoute,
 }
 
@@ -107,39 +240,84 @@ const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 export interface FileRoutesByFullPath {
   '': typeof AuthRouteWithChildren
   '/about': typeof AuthAboutRoute
+  '/docs': typeof AuthDocsRoute
+  '/projects': typeof AuthProjectsRouteWithChildren
+  '/test': typeof AuthTestRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
   '/': typeof AuthIndexRoute
+  '/projects/$projectId': typeof AuthProjectsProjectIdRouteWithChildren
+  '/projects/$projectId/workflows': typeof AuthProjectsProjectIdWorkflowsRouteWithChildren
+  '/projects/$projectId/workflows/$workflowName': typeof AuthProjectsProjectIdWorkflowsWorkflowNameRoute
 }
 
 export interface FileRoutesByTo {
   '/about': typeof AuthAboutRoute
+  '/docs': typeof AuthDocsRoute
+  '/projects': typeof AuthProjectsRouteWithChildren
+  '/test': typeof AuthTestRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
   '/': typeof AuthIndexRoute
+  '/projects/$projectId': typeof AuthProjectsProjectIdRouteWithChildren
+  '/projects/$projectId/workflows': typeof AuthProjectsProjectIdWorkflowsRouteWithChildren
+  '/projects/$projectId/workflows/$workflowName': typeof AuthProjectsProjectIdWorkflowsWorkflowNameRoute
 }
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/_auth': typeof AuthRouteWithChildren
   '/_auth/about': typeof AuthAboutRoute
+  '/_auth/docs': typeof AuthDocsRoute
+  '/_auth/projects': typeof AuthProjectsRouteWithChildren
+  '/_auth/test': typeof AuthTestRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
   '/_auth/': typeof AuthIndexRoute
+  '/_auth/projects/$projectId': typeof AuthProjectsProjectIdRouteWithChildren
+  '/_auth/projects/$projectId/workflows': typeof AuthProjectsProjectIdWorkflowsRouteWithChildren
+  '/_auth/projects/$projectId/workflows/$workflowName': typeof AuthProjectsProjectIdWorkflowsWorkflowNameRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '' | '/about' | '/auth/login' | '/auth/signup' | '/'
+  fullPaths:
+    | ''
+    | '/about'
+    | '/docs'
+    | '/projects'
+    | '/test'
+    | '/auth/login'
+    | '/auth/signup'
+    | '/'
+    | '/projects/$projectId'
+    | '/projects/$projectId/workflows'
+    | '/projects/$projectId/workflows/$workflowName'
   fileRoutesByTo: FileRoutesByTo
-  to: '/about' | '/auth/login' | '/auth/signup' | '/'
+  to:
+    | '/about'
+    | '/docs'
+    | '/projects'
+    | '/test'
+    | '/auth/login'
+    | '/auth/signup'
+    | '/'
+    | '/projects/$projectId'
+    | '/projects/$projectId/workflows'
+    | '/projects/$projectId/workflows/$workflowName'
   id:
     | '__root__'
     | '/_auth'
     | '/_auth/about'
+    | '/_auth/docs'
+    | '/_auth/projects'
+    | '/_auth/test'
     | '/auth/login'
     | '/auth/signup'
     | '/_auth/'
+    | '/_auth/projects/$projectId'
+    | '/_auth/projects/$projectId/workflows'
+    | '/_auth/projects/$projectId/workflows/$workflowName'
   fileRoutesById: FileRoutesById
 }
 
@@ -174,11 +352,29 @@ export const routeTree = rootRoute
       "filePath": "_auth.tsx",
       "children": [
         "/_auth/about",
+        "/_auth/docs",
+        "/_auth/projects",
+        "/_auth/test",
         "/_auth/"
       ]
     },
     "/_auth/about": {
       "filePath": "_auth.about.tsx",
+      "parent": "/_auth"
+    },
+    "/_auth/docs": {
+      "filePath": "_auth.docs.tsx",
+      "parent": "/_auth"
+    },
+    "/_auth/projects": {
+      "filePath": "_auth.projects.tsx",
+      "parent": "/_auth",
+      "children": [
+        "/_auth/projects/$projectId"
+      ]
+    },
+    "/_auth/test": {
+      "filePath": "_auth.test.tsx",
       "parent": "/_auth"
     },
     "/auth/login": {
@@ -190,6 +386,24 @@ export const routeTree = rootRoute
     "/_auth/": {
       "filePath": "_auth.index.tsx",
       "parent": "/_auth"
+    },
+    "/_auth/projects/$projectId": {
+      "filePath": "_auth.projects.$projectId.tsx",
+      "parent": "/_auth/projects",
+      "children": [
+        "/_auth/projects/$projectId/workflows"
+      ]
+    },
+    "/_auth/projects/$projectId/workflows": {
+      "filePath": "_auth.projects.$projectId.workflows.tsx",
+      "parent": "/_auth/projects/$projectId",
+      "children": [
+        "/_auth/projects/$projectId/workflows/$workflowName"
+      ]
+    },
+    "/_auth/projects/$projectId/workflows/$workflowName": {
+      "filePath": "_auth.projects.$projectId.workflows.$workflowName.tsx",
+      "parent": "/_auth/projects/$projectId/workflows"
     }
   }
 }

@@ -5,14 +5,18 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { routeTree } from './routeTree.gen';
 import { AuthProvider, useAuth } from './auth';
 import { queryClient } from './lib/query';
+import { NotFound } from '~/components/not-found';
 import './main.css';
 
 const router = createRouter({
 	routeTree,
 	defaultPreload: 'intent',
 	context: {
+		queryClient,
 		auth: undefined!,
 	},
+	defaultNotFoundComponent: () => <NotFound />,
+	defaultPreloadStaleTime: 0,
 });
 
 declare module '@tanstack/react-router' {

@@ -1,7 +1,7 @@
 # Local
 .DS_Store
 *.local
-# *.log* conflits with auth.login.tsx file
+*.log*
 
 # Dist
 node_modules
