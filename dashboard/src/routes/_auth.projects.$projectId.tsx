@@ -20,16 +20,8 @@ import { projectApi } from "~/lib/api/projects"
 import { Outlet } from "@tanstack/react-router"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~ui/select";
 import { LineChart } from '~/components/ui/charts/line-chart';
-import { WorkflowStatsCard } from "~/components/workflow/workflow-stats-card";
-import {
-	Breadcrumb,
-	BreadcrumbItem,
-	BreadcrumbLink,
-	BreadcrumbList,
-	BreadcrumbSeparator,
-} from '~ui/breadcrumb';
-import { Link } from '@tanstack/react-router';
-import type { Workflow } from "~types";
+
+import { BreadcrumbNav } from '~/components/layout/breadcrumb-nav';
 
 
 const defaultProjectStats = {
@@ -137,21 +129,7 @@ function ProjectDetailPage() {
 
 	return (
 		<div className="container py-6 space-y-6">
-			<Breadcrumb>
-				<BreadcrumbList>
-					<BreadcrumbItem>
-						<BreadcrumbLink asChild>
-							<Link to="/projects">Projects</Link>
-						</BreadcrumbLink>
-					</BreadcrumbItem>
-					<BreadcrumbSeparator />
-					<BreadcrumbItem>
-						<BreadcrumbLink>
-							{project.name}
-						</BreadcrumbLink>
-					</BreadcrumbItem>
-				</BreadcrumbList>
-			</Breadcrumb>
+			<BreadcrumbNav />
 
 			{isProjectsRoot ? (
 				<>
@@ -178,9 +156,9 @@ function ProjectDetailPage() {
 					</div>
 
 					{/* Update the grid layout to be full width */}
-					<div className="space-y-6">
-						{/* Activity Chart Card - Now full width */}
-						<Card>
+					<div className="space-y-6 flex gap-6 flex-row-reverse">
+						{/* Activity Chart Card */}
+						<Card className="flex-[2]">
 							<CardHeader className="flex flex-row items-center justify-between">
 								<CardTitle>Workflow Activity</CardTitle>
 								<Select
@@ -197,7 +175,7 @@ function ProjectDetailPage() {
 								</Select>
 							</CardHeader>
 							<CardContent>
-								<ChartContainer className="h-[400px]" config={{
+								<ChartContainer className="h-[350px]" config={{
 									workflows: {
 										label: 'Workflows',
 										theme: {
@@ -230,8 +208,8 @@ function ProjectDetailPage() {
 							</CardContent>
 						</Card>
 
-						{/* Project Information Card - Now full width */}
-						<Card>
+						{/* Project Information Card */}
+						<Card className="flex-1 max-w-md">
 							<CardHeader>
 								<CardTitle>Project Information</CardTitle>
 							</CardHeader>
@@ -300,23 +278,6 @@ function ProjectDetailPage() {
 								</div>
 							</CardContent>
 						</Card>
-
-						{/* Workflow Stats Cards - Grid layout */}
-						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-							{workflows?.map((workflow: Workflow) => (
-								<WorkflowStatsCard
-									key={workflow.id}
-									name={workflow.name}
-									eventsToday={workflow.eventsToday}
-									trend={workflow.trend}
-									comparisons={{
-										oneHour: {
-											eventsDiff: workflow.comparisons?.oneHour?.eventsDiff ?? 0
-										}
-									}}
-								/>
-							))}
-						</div>
 					</div>
 
 					{/* Workflows Table */}

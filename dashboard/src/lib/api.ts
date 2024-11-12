@@ -1,7 +1,11 @@
 import ky from 'ky';
 
+if (!import.meta.env.PUBLIC_API_URL) {
+	throw new Error('PUBLIC_API_URL environment variable is not defined');
+}
+
 export const api = ky.create({
-	prefixUrl: process.env.API_URL,
+	prefixUrl: import.meta.env.PUBLIC_API_URL,
 	credentials: 'include',
 });
 

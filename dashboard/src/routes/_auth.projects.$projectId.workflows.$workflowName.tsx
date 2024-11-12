@@ -7,20 +7,10 @@ import { workflowApi } from '~/lib/api/workflows'
 import { Badge } from "~ui/badge";
 import { Button } from "~ui/button";
 import { formatDistanceToNow } from "date-fns";
-import {
-	Breadcrumb,
-	BreadcrumbItem,
-	BreadcrumbLink,
-	BreadcrumbList,
-	BreadcrumbPage,
-	BreadcrumbSeparator,
-} from '~ui/breadcrumb'
-import { Link } from '@tanstack/react-router'
 import { useProject } from '~/lib/queries/projects'
 import { useWorkflowEvents } from '~/lib/queries/workflows'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { DataTable } from "~/components/ui/data-table/data-table";
-import { Drawer } from "vaul";
 import type { Event } from "~types";
 import { EventSideDrawer } from '~components/ui/drawer/side-drawer'
 
@@ -53,6 +43,10 @@ function WorkflowDetailPage() {
 	const { data: project } = useProject(projectId)
 	const { data: events } = useWorkflowEvents(projectId, workflowName)
 	const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
+	const [pagination, setPagination] = useState({
+		pageIndex: 0,
+		pageSize: 20,
+	})
 
 	const columns = [
 		{
@@ -97,33 +91,16 @@ function WorkflowDetailPage() {
 		}
 	];
 
-
 	if (!workflow || !project) return null
+
+	// Calculate pagination
+	const start = pagination.pageIndex * pagination.pageSize
+	const end = start + pagination.pageSize
+	const totalPages = Math.ceil((events?.length || 0) / pagination.pageSize)
+	const paginatedEvents = events?.slice(start, end) ?? []
 
 	return (
 		<div className="container py-6 space-y-6">
-			<Breadcrumb>
-				<BreadcrumbList>
-					<BreadcrumbItem>
-						<BreadcrumbLink asChild>
-							<Link to="/projects">Projects</Link>
-						</BreadcrumbLink>
-					</BreadcrumbItem>
-					<BreadcrumbSeparator />
-					<BreadcrumbItem>
-						<BreadcrumbLink asChild>
-							<Link to="/projects/$projectId" params={{ projectId }}>
-								{project.name}
-							</Link>
-						</BreadcrumbLink>
-					</BreadcrumbItem>
-					<BreadcrumbSeparator />
-					<BreadcrumbItem>
-						<BreadcrumbPage>{workflow.name}</BreadcrumbPage>
-					</BreadcrumbItem>
-				</BreadcrumbList>
-			</Breadcrumb>
-
 			<Card>
 				<CardHeader>
 					<CardTitle>{workflow.name}</CardTitle>
@@ -131,7 +108,7 @@ function WorkflowDetailPage() {
 				<CardContent>
 					<DataTable
 						columns={columns}
-						data={events ?? []}
+						data={paginatedEvents}
 						filterFields={[
 							{
 								id: "name",
@@ -150,6 +127,15 @@ function WorkflowDetailPage() {
 								],
 							},
 						]}
+						pagination={{
+							pageIndex: pagination.pageIndex,
+							pageSize: pagination.pageSize,
+							pageCount: totalPages,
+							onPageChange: (newPageIndex) =>
+								setPagination(prev => ({ ...prev, pageIndex: newPageIndex })),
+							onPageSizeChange: (newPageSize) =>
+								setPagination({ pageIndex: 0, pageSize: newPageSize }),
+						}}
 					/>
 				</CardContent>
 			</Card>

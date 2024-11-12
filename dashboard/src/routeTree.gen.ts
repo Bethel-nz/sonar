@@ -15,7 +15,6 @@ import { Route as AuthImport } from './routes/_auth'
 import { Route as AuthIndexImport } from './routes/_auth.index'
 import { Route as AuthSignupImport } from './routes/auth.signup'
 import { Route as AuthLoginImport } from './routes/auth.login'
-import { Route as AuthTestImport } from './routes/_auth.test'
 import { Route as AuthProjectsImport } from './routes/_auth.projects'
 import { Route as AuthDocsImport } from './routes/_auth.docs'
 import { Route as AuthAboutImport } from './routes/_auth.about'
@@ -46,12 +45,6 @@ const AuthLoginRoute = AuthLoginImport.update({
   id: '/auth/login',
   path: '/auth/login',
   getParentRoute: () => rootRoute,
-} as any)
-
-const AuthTestRoute = AuthTestImport.update({
-  id: '/test',
-  path: '/test',
-  getParentRoute: () => AuthRoute,
 } as any)
 
 const AuthProjectsRoute = AuthProjectsImport.update({
@@ -122,13 +115,6 @@ declare module '@tanstack/react-router' {
       path: '/projects'
       fullPath: '/projects'
       preLoaderRoute: typeof AuthProjectsImport
-      parentRoute: typeof AuthImport
-    }
-    '/_auth/test': {
-      id: '/_auth/test'
-      path: '/test'
-      fullPath: '/test'
-      preLoaderRoute: typeof AuthTestImport
       parentRoute: typeof AuthImport
     }
     '/auth/login': {
@@ -223,7 +209,6 @@ interface AuthRouteChildren {
   AuthAboutRoute: typeof AuthAboutRoute
   AuthDocsRoute: typeof AuthDocsRoute
   AuthProjectsRoute: typeof AuthProjectsRouteWithChildren
-  AuthTestRoute: typeof AuthTestRoute
   AuthIndexRoute: typeof AuthIndexRoute
 }
 
@@ -231,7 +216,6 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthAboutRoute: AuthAboutRoute,
   AuthDocsRoute: AuthDocsRoute,
   AuthProjectsRoute: AuthProjectsRouteWithChildren,
-  AuthTestRoute: AuthTestRoute,
   AuthIndexRoute: AuthIndexRoute,
 }
 
@@ -242,7 +226,6 @@ export interface FileRoutesByFullPath {
   '/about': typeof AuthAboutRoute
   '/docs': typeof AuthDocsRoute
   '/projects': typeof AuthProjectsRouteWithChildren
-  '/test': typeof AuthTestRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
   '/': typeof AuthIndexRoute
@@ -255,7 +238,6 @@ export interface FileRoutesByTo {
   '/about': typeof AuthAboutRoute
   '/docs': typeof AuthDocsRoute
   '/projects': typeof AuthProjectsRouteWithChildren
-  '/test': typeof AuthTestRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
   '/': typeof AuthIndexRoute
@@ -270,7 +252,6 @@ export interface FileRoutesById {
   '/_auth/about': typeof AuthAboutRoute
   '/_auth/docs': typeof AuthDocsRoute
   '/_auth/projects': typeof AuthProjectsRouteWithChildren
-  '/_auth/test': typeof AuthTestRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
   '/_auth/': typeof AuthIndexRoute
@@ -286,7 +267,6 @@ export interface FileRouteTypes {
     | '/about'
     | '/docs'
     | '/projects'
-    | '/test'
     | '/auth/login'
     | '/auth/signup'
     | '/'
@@ -298,7 +278,6 @@ export interface FileRouteTypes {
     | '/about'
     | '/docs'
     | '/projects'
-    | '/test'
     | '/auth/login'
     | '/auth/signup'
     | '/'
@@ -311,7 +290,6 @@ export interface FileRouteTypes {
     | '/_auth/about'
     | '/_auth/docs'
     | '/_auth/projects'
-    | '/_auth/test'
     | '/auth/login'
     | '/auth/signup'
     | '/_auth/'
@@ -354,7 +332,6 @@ export const routeTree = rootRoute
         "/_auth/about",
         "/_auth/docs",
         "/_auth/projects",
-        "/_auth/test",
         "/_auth/"
       ]
     },
@@ -372,10 +349,6 @@ export const routeTree = rootRoute
       "children": [
         "/_auth/projects/$projectId"
       ]
-    },
-    "/_auth/test": {
-      "filePath": "_auth.test.tsx",
-      "parent": "/_auth"
     },
     "/auth/login": {
       "filePath": "auth.login.tsx"
