@@ -11,32 +11,35 @@ interface RetryConfig<T> {
  * retry function for forms
  */
 export async function withRetry<T>(action: () => Promise<T>, config: RetryConfig<T> = {}) {
-	const {
-		maxAttempts = 3,
-		onAttempt,
-		onMaxAttemptsReached,
-		onSuccess,
-		onError,
-		resetAction,
-	} = config;
+        const {
+                maxAttempts = 3,
+                onAttempt,
+                onMaxAttemptsReached,
+                onSuccess,
+                onError,
+                resetAction,
+        } = config;
 
-	let attempts = 0;
-	try {
-		attempts++;
-		onAttempt?.(attempts);
+        let attempts = 0;
+        
+        while (attempts < maxAttempts) {
+                try {
+                        attempts++;
+                        onAttempt?.(attempts);
 
-		const result = await action();
-		if (result) {
-			onSuccess?.(result);
-			return result;
-		}
-	} catch (error) {
-		onError?.(error, attempts);
-		resetAction?.();
+                        const result = await action();
+                        if (result) {
+                                onSuccess?.(result);
+                                return result;
+                        }
+                } catch (error) {
+                        onError?.(error, attempts);
+                        resetAction?.();
 
-		if (attempts === maxAttempts) {
-			onMaxAttemptsReached?.();
-			throw error;
-		}
-	}
+                        if (attempts === maxAttempts) {
+                                onMaxAttemptsReached?.();
+                                throw error;
+                        }
+                }
+        }
 }
