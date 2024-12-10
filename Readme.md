@@ -1,6 +1,6 @@
-# 🚀 Sonar: Event Tracking System
+# 🚀 Sonar: Event Notification System
 
-Sonar is an open-source self hostable event tracking and notification system that helps you monitor your application workflows in real-time through Discord and Telegram.
+Sonar is an open-source self hostable event notification system that helps you monitor your application workflows in real-time through Discord and Telegram.
 
 ## 🌟 Features
 
